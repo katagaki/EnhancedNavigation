@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Safari's tab grid, for the `switcher` side of a `TabZoomContainer`. The
-/// bottom bar's leading slot is the app's, and is left out when empty.
+/// top bar's trailing slot is the app's, and is left out when empty.
 public struct TabSwitcher<
     Root: TabRoot,
     Identity: TabPageIdentity,
     CardLabel: View,
-    BottomLeadingItem: View
+    TopTrailingItem: View
 >: View {
 
     public typealias Tab = NavigationTab<Root, Identity>
@@ -16,7 +16,7 @@ public struct TabSwitcher<
     private let rebuildPath: TabNavigationStore<Root, Identity>.PathRebuilder
     private let cardLabel: (Tab) -> CardLabel
     private let placeholderIcon: TabSwitcherPlaceholderIcon
-    private let bottomLeadingItem: BottomLeadingItem
+    private let topTrailingItem: TopTrailingItem
     @State private var isDismissing = false
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 16)]
@@ -27,14 +27,14 @@ public struct TabSwitcher<
         placeholderIcon: TabSwitcherPlaceholderIcon = .systemImage("square.on.square"),
         rebuildingPath rebuildPath: @escaping TabNavigationStore<Root, Identity>.PathRebuilder,
         @ViewBuilder cardLabel: @escaping (Tab) -> CardLabel,
-        @ViewBuilder bottomLeadingItem: () -> BottomLeadingItem
+        @ViewBuilder topTrailingItem: () -> TopTrailingItem
     ) {
         self.store = store
         self.strings = strings
         self.rebuildPath = rebuildPath
         self.cardLabel = cardLabel
         self.placeholderIcon = placeholderIcon
-        self.bottomLeadingItem = bottomLeadingItem()
+        self.topTrailingItem = topTrailingItem()
     }
 
     public var body: some View {
@@ -83,7 +83,12 @@ public struct TabSwitcher<
                 Image(systemName: "ellipsis")
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        if TopTrailingItem.self != EmptyView.self {
+            ToolbarItem(placement: .topBarTrailing) {
+                topTrailingItem
+            }
+        }
+        ToolbarItem(placement: .bottomBar) {
             Button {
                 guard !isDismissing else { return }
                 store.openTab()
@@ -94,11 +99,6 @@ public struct TabSwitcher<
                 Image(systemName: "plus")
             }
             .accessibilityLabel(strings.newTab)
-        }
-        if BottomLeadingItem.self != EmptyView.self {
-            ToolbarItem(placement: .bottomBar) {
-                bottomLeadingItem
-            }
         }
 
         #if !os(visionOS)
@@ -142,7 +142,7 @@ public struct TabSwitcher<
     }
 }
 
-public extension TabSwitcher where BottomLeadingItem == EmptyView {
+public extension TabSwitcher where TopTrailingItem == EmptyView {
     init(
         store: TabNavigationStore<Root, Identity>,
         strings: TabSwitcherStrings = TabSwitcherStrings(),
@@ -156,7 +156,7 @@ public extension TabSwitcher where BottomLeadingItem == EmptyView {
             placeholderIcon: placeholderIcon,
             rebuildingPath: rebuildPath,
             cardLabel: cardLabel,
-            bottomLeadingItem: { EmptyView() }
+            topTrailingItem: { EmptyView() }
         )
     }
 }

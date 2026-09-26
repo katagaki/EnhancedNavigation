@@ -31,13 +31,13 @@ LiveTabStack(store: store) { tab in
 
 Pages report themselves with `store.setPageIdentity(_:for:)`. Restore pushed pages with `restorePathIfNeeded(for:rebuilding:)`, which hands back each saved path token for the app to turn into a value again.
 
-The switcher sits behind the stack in a `TabZoomContainer`. `placeholderIcon` is an SF Symbol (`.systemImage`) or an asset catalog image (`.asset(_:bundle:)`) for tabs with no snapshot yet. Leave out `bottomLeadingItem` to keep the bottom bar's leading slot empty.
+The switcher sits behind the stack in a `TabZoomContainer`. `placeholderIcon` is an SF Symbol (`.systemImage`) or an asset catalog image (`.asset(_:bundle:)`) for tabs with no snapshot yet. Leave out `topTrailingItem` to keep the top bar's trailing slot empty.
 
 ```swift
 TabZoomContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRadius) {
     TabSwitcher(store: store, placeholderIcon: .systemImage("safari"), rebuildingPath: rebuildPath) { tab in
         Text(tab.pageIdentity?.title ?? "New Tab")
-    } bottomLeadingItem: {
+    } topTrailingItem: {
         Button("Profile", systemImage: "person.crop.circle") { isShowingProfile = true }
     }
 } page: { _ in
