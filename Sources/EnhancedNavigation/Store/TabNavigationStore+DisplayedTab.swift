@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// What a tab's own chrome shows. Every mounted page can carry its own bar, so
-/// these are read per tab rather than through the selection: a bar that
-/// follows the selection is rebuilt, menus and all, on every tab switch, in
-/// every tab, right as the switcher transition starts.
+/// What a tab's own chrome shows. Read per tab rather than through the
+/// selection: a bar that follows the selection is rebuilt in every mounted
+/// tab on every tab switch, right as the switcher transition starts.
 public extension TabNavigationStore {
 
     var displayedTab: Tab {

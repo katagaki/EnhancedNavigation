@@ -20,10 +20,9 @@ public enum WindowSnapshotter {
 
         let size = CGSize(width: targetWidth, height: height * scale)
         let format = UIGraphicsImageRendererFormat.default()
-        // Capped, not the display's own scale: a 3x card is invisibly sharper
-        // than a 2x one and costs more than twice as much to draw, right as
-        // the tap lands. traitCollection rather than screen: visionOS has no
-        // UIScreen.
+        // Capped: a 3x card is invisibly sharper than a 2x one and costs more
+        // than twice as much to draw. Read from the trait collection because
+        // visionOS has no UIScreen.
         format.scale = min(window.traitCollection.displayScale, maximumScale)
         // No alpha to blend or carry: the page behind is opaque anyway.
         format.opaque = true

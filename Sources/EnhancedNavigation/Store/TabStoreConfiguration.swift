@@ -8,14 +8,13 @@ public struct TabStoreConfiguration {
     /// Prefixes every `UserDefaults` key the store writes.
     public var persistenceKeyPrefix: String
 
-    /// Under the caches directory: cheap to rebuild, and no business in a
-    /// backup.
+    /// Created under the caches directory.
     public var snapshotDirectoryName: String
 
     /// In points: the renderer draws at the display's scale.
     public var snapshotWidth: CGFloat
 
-    /// Long enough for the zoom to read; the default speed pops.
+    /// Slower than the default so the zoom reads.
     public var switcherAnimation: Animation
 
     public var frequentlyVisitedLimit: Int

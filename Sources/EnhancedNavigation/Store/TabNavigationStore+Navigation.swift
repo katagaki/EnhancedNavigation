@@ -6,6 +6,7 @@ public extension TabNavigationStore {
     /// system's push animation and its interactive back gesture rather than
     /// swapping the stack's root out from under itself.
     func navigate(to root: Root) {
+        discardForwardHistory(for: selectedTabID)
         updateSelectedTab { $0.path.append(root) }
         recordVisit(root)
         markLive(selectedTabID)
@@ -13,6 +14,7 @@ public extension TabNavigationStore {
     }
 
     func push<Value: Hashable>(_ value: Value) {
+        discardForwardHistory(for: selectedTabID)
         updateSelectedTab { $0.path.append(value) }
         persistTabs()
     }
@@ -45,6 +47,9 @@ public extension TabNavigationStore {
             set: { [weak self] newPath in
                 guard let self else { return }
                 let previousDepth = tab(tabID)?.path.count ?? 0
+                if newPath.count > previousDepth {
+                    discardForwardHistory(for: tabID)
+                }
                 updateTab(tabID) { $0.path = newPath }
                 clearOverlayPages(for: tabID)
                 if newPath.count < previousDepth {

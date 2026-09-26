@@ -40,6 +40,19 @@ public extension TabNavigationStore {
         pageHistories[tabID] = history
     }
 
+    /// Drops history above the current page before a push. A pop keeps it so
+    /// late reports from popped pages can still be recognised, but after a
+    /// push it is a dead branch, and a page from it reopened at another depth
+    /// would have its report refused.
+    func discardForwardHistory(for tabID: UUID) {
+        guard let depth = tab(tabID)?.path.count,
+              var history = pageHistories[tabID],
+              history.count > depth + 1
+        else { return }
+        history.removeSubrange((depth + 1)...)
+        pageHistories[tabID] = history
+    }
+
     /// Pages behind the current one, nearest first.
     func backHistory(for tabID: UUID) -> [BackHistoryEntry<Identity>] {
         guard let tab = tab(tabID) else { return [] }

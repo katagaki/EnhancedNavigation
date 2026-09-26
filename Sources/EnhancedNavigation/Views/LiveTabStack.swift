@@ -26,9 +26,7 @@ public struct LiveTabStack<Root: TabRoot, Identity: TabPageIdentity, Content: Vi
                         .opacity(isSelected ? 1 : 0)
                         .allowsHitTesting(isSelected)
                         // A zero-opacity tab still publishes its accessibility
-                        // elements, so assistive tech would read every mounted
-                        // tab at once. Collapsing the subtree is what actually
-                        // takes them out of the tree.
+                        // elements; collapsing the subtree takes them out.
                         .accessibilityElement(children: isSelected ? .contain : .ignore)
                         .accessibilityHidden(!isSelected)
                 }

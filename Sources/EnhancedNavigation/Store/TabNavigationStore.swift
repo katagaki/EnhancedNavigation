@@ -99,8 +99,7 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     }
 
     public var selectedTab: Tab {
-        // Never subscripts: a lookup against an empty array is what crashed
-        // while a tab was being removed.
+        // Never subscripts, so a stale selection cannot crash mid-removal.
         tabs.first { $0.id == selectedTabID } ?? tabs.first ?? Tab()
     }
 

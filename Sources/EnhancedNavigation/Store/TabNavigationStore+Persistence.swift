@@ -9,8 +9,8 @@ public extension TabNavigationStore {
         let keys = PersistenceKeys(prefix: configuration.persistenceKeyPrefix)
         let defaults = UserDefaults.standard
         let tokens = defaults.stringArray(forKey: keys.tabTokens) ?? []
-        // Identities are restored too: snapshots are filed under the tab's id,
-        // so a fresh one would orphan them.
+        // Tab IDs are restored too: snapshots are filed under them, so fresh
+        // IDs would orphan them.
         let identifiers = defaults.stringArray(forKey: keys.tabIDs) ?? []
         let restoredTabs = tokens.enumerated().compactMap { index, token -> Tab? in
             guard let root = Root(persistenceToken: token) else { return nil }
