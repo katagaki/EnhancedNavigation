@@ -75,8 +75,10 @@ public extension View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
                 .font(.system(size: 17))
-                // A tap target taller than the glyph, inside the capsule.
-                .frame(minWidth: 32, minHeight: 44)
+                // A tap target taller than the glyph, and no wider, so the
+                // glyph sits flush with the omnibox's own padding.
+                .frame(minHeight: 44)
+                .contentShape(.rect)
         }
     }
 }
