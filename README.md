@@ -78,3 +78,21 @@ ArticleView(article)
 `.tabOmniboxAccessory` takes a `Button` or `Menu` and draws its symbol alone. `.tabBottomBarItem(.leading)` and `.tabBottomBarItem(.trailing)` add items beside the omnibox.
 
 `Examples/EnhancedNavigationDemo` is a sample app: `xcodegen generate` in that folder, then build. Launch with `-BarStyle system` to compare against the system bar.
+
+## Testing
+
+The store's logic is covered by the package's own tests, which need UIKit, so they run on a simulator:
+
+```sh
+xcodebuild test -scheme EnhancedNavigation -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+`Examples/EnhancedNavigationHarness` is a test harness app with a page for every feature, and an inspector (in the switcher's top bar, or the catalog's omnibox menu) showing the store's state live. Its UI tests drive each feature end to end: pushing and popping, the back button's history menu, swiping back, overlay pages, media pages, bar items, the switcher's new tab, close, swipe to close and drag to reorder, live tab eviction, restoration across a relaunch, frequently visited roots, page slots and the frame clock.
+
+```sh
+cd Examples/EnhancedNavigationHarness
+xcodegen generate
+xcodebuild test -scheme EnhancedNavigationHarness -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+The UI tests launch with `-ResetState YES` to start from nothing. `-LiveTabLimit <n>` changes how many tabs stay mounted (3 by default in the harness).

@@ -46,6 +46,12 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     /// grid lays out, and a target that moves mid-flight makes the page jump.
     public internal(set) var collapseTarget: CGRect?
 
+    /// The tab being dragged to a new place, whose card stands in for where
+    /// it will land. Set once the drag reaches a card rather than on lift, so
+    /// the lift preview is taken of the card and not of its placeholder.
+    public internal(set) var reorderingTabID: UUID?
+    @ObservationIgnored var draggedTabID: UUID?
+
     /// What each tab has visited, indexed by depth in its path. A
     /// NavigationPath cannot be read back, so the store keeps its own record
     /// to offer a back history.

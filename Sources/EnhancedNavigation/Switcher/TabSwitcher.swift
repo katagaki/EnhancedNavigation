@@ -58,6 +58,7 @@ public struct TabSwitcher<
                 }
                 .padding(16)
             }
+            .endsTabReordering(in: store)
             .navigationTitle(strings.title(store.tabs.count))
             .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }

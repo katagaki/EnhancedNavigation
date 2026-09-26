@@ -22,6 +22,9 @@ public extension TabNavigationStore {
     /// nudges the page's content as it settles.
     func hideTabSwitcher() {
         freezeCollapseTarget()
+        // A drag let go of outside the grid is not reported before iOS 27,
+        // so its placeholder would otherwise greet the next visit.
+        endReordering()
         setWithoutAnimation { isShowingTabSwitcher = false }
         // A tick later: the page re-lays itself out around its own bars the
         // moment the chrome comes back, and doing that in the same pass as

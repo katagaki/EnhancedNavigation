@@ -20,6 +20,15 @@ let package = Package(
                 .enableUpcomingFeature("InferIsolatedConformances"),
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault")
             ]
+        ),
+        .testTarget(
+            name: "EnhancedNavigationTests",
+            dependencies: ["EnhancedNavigation"],
+            swiftSettings: [
+                .defaultIsolation(MainActor.self),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+            ]
         )
     ]
 )

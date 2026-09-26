@@ -1,0 +1,49 @@
+name: EnhancedNavigationHarness
+options:
+  bundleIdPrefix: com.katagaki
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  EnhancedNavigation:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  EnhancedNavigationHarness:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: EnhancedNavigation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.katagaki.EnhancedNavigationHarness
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Harness
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+  EnhancedNavigationHarnessUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: EnhancedNavigationHarness
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.katagaki.EnhancedNavigationHarnessUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: EnhancedNavigationHarness
+schemes:
+  EnhancedNavigationHarness:
+    build:
+      targets:
+        EnhancedNavigationHarness: all
+        EnhancedNavigationHarnessUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - EnhancedNavigationHarnessUITests
