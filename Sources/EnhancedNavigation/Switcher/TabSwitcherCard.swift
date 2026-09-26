@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View, Placeholder: View>: View {
+struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: View {
 
     private typealias Metrics = TabSwitcherCardMetrics
 
@@ -10,8 +10,8 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View, Pl
     let closeLabel: String
     let onSelect: () -> Void
     let onClose: () -> Void
+    let placeholderIcon: TabSwitcherPlaceholderIcon
     let label: (NavigationTab<Root, Identity>) -> Label
-    let placeholder: () -> Placeholder
     @State private var dragOffset: CGFloat = 0
     @State private var isPastCloseDistance = false
     @State private var isHeaderVisible = true
@@ -31,7 +31,7 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View, Pl
                 .aspectRatio(Metrics.previewAspectRatio, contentMode: .fit)
                 .overlay(alignment: .top) {
                     TabSnapshotView(store: store, tabID: tab.id) {
-                        placeholder()
+                        TabSwitcherCardPlaceholder(icon: placeholderIcon)
                     }
                 }
                 .overlay(alignment: .top) {

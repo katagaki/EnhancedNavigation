@@ -6,7 +6,6 @@ public struct TabSwitcher<
     Root: TabRoot,
     Identity: TabPageIdentity,
     CardLabel: View,
-    CardPlaceholder: View,
     BottomLeadingItem: View
 >: View {
 
@@ -16,7 +15,7 @@ public struct TabSwitcher<
     private let strings: TabSwitcherStrings
     private let rebuildPath: TabNavigationStore<Root, Identity>.PathRebuilder
     private let cardLabel: (Tab) -> CardLabel
-    private let cardPlaceholder: () -> CardPlaceholder
+    private let placeholderIcon: TabSwitcherPlaceholderIcon
     private let bottomLeadingItem: BottomLeadingItem
     @State private var isDismissing = false
 
@@ -25,16 +24,16 @@ public struct TabSwitcher<
     public init(
         store: TabNavigationStore<Root, Identity>,
         strings: TabSwitcherStrings = TabSwitcherStrings(),
+        placeholderIcon: TabSwitcherPlaceholderIcon = .systemImage("square.on.square"),
         rebuildingPath rebuildPath: @escaping TabNavigationStore<Root, Identity>.PathRebuilder,
         @ViewBuilder cardLabel: @escaping (Tab) -> CardLabel,
-        @ViewBuilder cardPlaceholder: @escaping () -> CardPlaceholder,
         @ViewBuilder bottomLeadingItem: () -> BottomLeadingItem
     ) {
         self.store = store
         self.strings = strings
         self.rebuildPath = rebuildPath
         self.cardLabel = cardLabel
-        self.cardPlaceholder = cardPlaceholder
+        self.placeholderIcon = placeholderIcon
         self.bottomLeadingItem = bottomLeadingItem()
     }
 
@@ -50,8 +49,8 @@ public struct TabSwitcher<
                             closeLabel: strings.closeTab,
                             onSelect: { select(tab.id) },
                             onClose: { close(tab.id) },
-                            label: cardLabel,
-                            placeholder: cardPlaceholder
+                            placeholderIcon: placeholderIcon,
+                            label: cardLabel
                         )
                         .equatable()
                         .reorderableTab(id: tab.id, in: store)
@@ -147,16 +146,16 @@ public extension TabSwitcher where BottomLeadingItem == EmptyView {
     init(
         store: TabNavigationStore<Root, Identity>,
         strings: TabSwitcherStrings = TabSwitcherStrings(),
+        placeholderIcon: TabSwitcherPlaceholderIcon = .systemImage("square.on.square"),
         rebuildingPath rebuildPath: @escaping TabNavigationStore<Root, Identity>.PathRebuilder,
-        @ViewBuilder cardLabel: @escaping (Tab) -> CardLabel,
-        @ViewBuilder cardPlaceholder: @escaping () -> CardPlaceholder
+        @ViewBuilder cardLabel: @escaping (Tab) -> CardLabel
     ) {
         self.init(
             store: store,
             strings: strings,
+            placeholderIcon: placeholderIcon,
             rebuildingPath: rebuildPath,
             cardLabel: cardLabel,
-            cardPlaceholder: cardPlaceholder,
             bottomLeadingItem: { EmptyView() }
         )
     }
