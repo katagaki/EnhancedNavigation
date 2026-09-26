@@ -79,8 +79,17 @@ struct InteractivePopGestureEnabler: UIViewRepresentable {
                 onEnd?(wasCancelled)
                 return
             }
-            coordinator.animate(alongsideTransition: nil) { [weak self] context in
-                self?.onEnd?(context.isCancelled)
+            // The closure is captured rather than `self`: the page this
+            // coordinator belongs to may be the one being swiped away, and
+            // with it gone the end would never be reported.
+            let onEnd = onEnd
+            let queued = coordinator.animate(alongsideTransition: nil) { context in
+                onEnd?(context.isCancelled)
+            }
+            // A transition that has already played out runs nothing queued on
+            // it, so the end is reported here instead.
+            if !queued {
+                onEnd?(coordinator.isCancelled)
             }
         }
 

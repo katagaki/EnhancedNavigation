@@ -6,6 +6,7 @@ public extension TabNavigationStore {
     /// system's push animation and its interactive back gesture rather than
     /// swapping the stack's root out from under itself.
     func navigate(to root: Root) {
+        settleInteractivePop()
         discardForwardHistory(for: selectedTabID)
         updateSelectedTab { $0.path.append(root) }
         recordVisit(root)
@@ -14,6 +15,7 @@ public extension TabNavigationStore {
     }
 
     func push<Value: Hashable>(_ value: Value) {
+        settleInteractivePop()
         discardForwardHistory(for: selectedTabID)
         updateSelectedTab { $0.path.append(value) }
         persistTabs()
@@ -48,6 +50,7 @@ public extension TabNavigationStore {
                 guard let self else { return }
                 let previousDepth = tab(tabID)?.path.count ?? 0
                 if newPath.count > previousDepth {
+                    settleInteractivePop()
                     discardForwardHistory(for: tabID)
                 }
                 updateTab(tabID) { $0.path = newPath }
@@ -80,5 +83,14 @@ public extension TabNavigationStore {
         frozenCanGoBack = nil
         frozenPageIdentity = nil
         stopMediaLeftBehind(in: selectedTabID)
+    }
+
+    /// Nothing can be pushed while a swipe back is still in flight, so a push
+    /// means the swipe's end was never heard, and the chrome would otherwise
+    /// go on naming the page that was swiped away. Whatever the swipe did, the
+    /// path has already caught up with it.
+    func settleInteractivePop() {
+        guard isInteractivelyPopping else { return }
+        endInteractivePop(cancelled: false)
     }
 }
