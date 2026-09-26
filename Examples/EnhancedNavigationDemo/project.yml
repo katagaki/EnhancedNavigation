@@ -1,0 +1,25 @@
+name: EnhancedNavigationDemo
+options:
+  bundleIdPrefix: com.katagaki
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  EnhancedNavigation:
+    path: ../..
+targets:
+  EnhancedNavigationDemo:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: EnhancedNavigation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.katagaki.EnhancedNavigationDemo
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: NO

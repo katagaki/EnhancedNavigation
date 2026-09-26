@@ -9,6 +9,7 @@ Safari-style tabs for SwiftUI, each tab with its own `NavigationPath`.
 - `TabZoomContainer`, `.tabCardFrame(id:in:)`, `TabSnapshotView`, `TabSnapshotHeaderBlur`: a full-screen switcher that the page zooms down onto.
 - `TabSwitcher`: the switcher's tab grid, with cards the page lands on, swipe to close, reordering, and the app's own card label, placeholder icon, strings and bottom bar leading item.
 - `.interactivePopGesture(for:)`: keeps swipe back working with the navigation bar hidden.
+- `.tabBottomBar { }`, `TabBottomBarMetrics`: a custom bar laid out like the system `.bottomBar`, keeping the soft scroll edge effect beneath it.
 - `.reorderableTab(id:in:)`, `PageSlot`, `OverlayPage`, `FrameClock`, `DisplayMetrics`.
 
 ```swift
@@ -43,3 +44,14 @@ TabZoomContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRa
     LiveTabStack(store: store) { tab in ... }
 }
 ```
+
+For a bottom bar of the app's own in place of the system `.bottomBar`, hang it off each tab's `NavigationStack` with `.tabBottomBar { }`. It sits where the system bar would, stays put while pages push and pop, and scroll views beneath it keep the soft edge effect.
+
+```swift
+NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
+    .tabBottomBar {
+        HStack(spacing: TabBottomBarMetrics.itemSpacing) { ... }
+    }
+```
+
+`Examples/EnhancedNavigationDemo` is a sample app: `xcodegen generate` in that folder, then build. Launch with `-BarStyle system` to compare against the system bar.
