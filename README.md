@@ -2,15 +2,19 @@
 
 Safari-style tabs for SwiftUI, each tab with its own `NavigationPath`.
 
-- `TabNavigationStore<Root, Identity>`: tabs, selection, a live-tab LRU, back history, persistence and restoration down to the page each tab was left on, and the tab switcher's zoom state.
-- `TabRoot`: what a tab is parked on, stored as a string token.
-- `TabPageIdentity`: what a page reports about itself, since a `NavigationPath` cannot be read back. Its `pathToken` is how the page is pushed again after a relaunch.
-- `LiveTabStack`: mounts the recently used tabs and hides the rest.
-- `TabZoomContainer`, `.tabCardFrame(id:in:)`, `TabSnapshotView`, `TabSnapshotHeaderBlur`: a full-screen switcher that the page zooms down onto.
-- `TabSwitcher`: the switcher's tab grid, with cards the page lands on, swipe to close, reordering, and the app's own card label, placeholder icon, strings and bottom bar leading item.
-- `.interactivePopGesture(for:)`: keeps swipe back working with the navigation bar hidden.
-- `.tabBottomBar { }`, `TabBottomBarMetrics`: a custom bar laid out like the system `.bottomBar`, keeping the soft scroll edge effect beneath it.
-- `.reorderableTab(id:in:)`, `PageSlot`, `OverlayPage`, `FrameClock`, `DisplayMetrics`.
+| API | What it does |
+| --- | --- |
+| `TabNavigationStore<Root, Identity>` | Tabs, selection, live-tab LRU, back history, persistence and restoration, switcher zoom state. |
+| `TabRoot` | What a tab is parked on, stored as a string token. |
+| `TabPageIdentity` | What a page reports about itself. Its `pathToken` re-pushes the page after a relaunch. |
+| `LiveTabStack` | Mounts recently used tabs and hides the rest. |
+| `TabZoomContainer`, `TabSwitcher` | A full-screen tab grid the page zooms down onto. |
+| `.tabBottomBar { }` | A custom bottom bar laid out like the system `.bottomBar`. |
+| `.interactivePopGesture(for:)` | Keeps swipe back working with the navigation bar hidden. |
+
+Also: `.tabCardFrame(id:in:)`, `TabSnapshotView`, `TabSnapshotHeaderBlur`, `TabBottomBarMetrics`, `.reorderableTab(id:in:)`, `PageSlot`, `OverlayPage`, `FrameClock`, `DisplayMetrics`.
+
+## Tabs
 
 ```swift
 let store = TabNavigationStore<Location, PageIdentity>.restored(
@@ -29,9 +33,10 @@ LiveTabStack(store: store) { tab in
 .task { store.loadPersistedSnapshots() }
 ```
 
-Pages report themselves with `store.setPageIdentity(_:for:)`. Restore pushed pages with `restorePathIfNeeded(for:rebuilding:)`, which hands back each saved path token for the app to turn into a value again.
+- Pages report themselves with `store.setPageIdentity(_:for:)`.
+- `restorePathIfNeeded(for:rebuilding:)` restores pushed pages, handing back each saved path token for the app to turn into a value.
 
-The switcher sits behind the stack in a `TabZoomContainer`. `placeholderIcon` is an SF Symbol (`.systemImage`) or an asset catalog image (`.asset(_:bundle:)`) for tabs with no snapshot yet. Leave out `topTrailingItem` to keep the top bar's trailing slot empty.
+## Tab switcher
 
 ```swift
 TabZoomContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRadius) {
@@ -45,16 +50,12 @@ TabZoomContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRa
 }
 ```
 
-For a bottom bar of the app's own in place of the system `.bottomBar`, hang it off each tab's `NavigationStack` with `.tabBottomBar { }`. It sits where the system bar would, stays put while pages push and pop, and scroll views beneath it keep the soft edge effect.
+- `placeholderIcon` is `.systemImage(_:)` or `.asset(_:bundle:)`, shown for tabs with no snapshot yet.
+- `topTrailingItem` is optional.
 
-```swift
-NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
-    .tabBottomBar {
-        HStack(spacing: TabBottomBarMetrics.itemSpacing) { ... }
-    }
-```
+## Bottom bar
 
-Pages can put their own controls in that bar, the way `.toolbar` does for the system one. Use `.tabBottomBar(for:in:)` so the bar's layout is handed what the visible page declared, and name each page with `.tabPage(pathToken:)`, the token it reports in its identity. A page's items are filed against it, so a page underneath cannot take the bar over as a pop reveals it, and they go when the page leaves the stack.
+Attach a bar to each tab's `NavigationStack`. It stays put while pages push and pop, and keeps the soft scroll edge effect.
 
 ```swift
 NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
@@ -67,7 +68,11 @@ NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
         .glassEffect(in: .capsule)
         TabsButton()
     }
+```
 
+Pages add their own controls to it:
+
+```swift
 ArticleView(article)
     .tabOmniboxAccessory {
         Menu("More", systemImage: "ellipsis") { ... }
@@ -75,21 +80,30 @@ ArticleView(article)
     .tabPage(pathToken: .article(article.id))
 ```
 
-`.tabOmniboxAccessory` takes a `Button` or `Menu` and draws its symbol alone. `.tabBottomBarItem(.leading)` and `.tabBottomBarItem(.trailing)` add items beside the omnibox.
+- `.tabOmniboxAccessory` takes a `Button` or `Menu` and shows only its symbol.
+- `.tabBottomBarItem(.leading)` / `.tabBottomBarItem(.trailing)` add items beside the omnibox.
+- A page's items belong to that page and disappear when it leaves the stack.
+- **Mark every page under the bar with `.tabPage(pathToken:)`**, even pages with no items, so their content scrolls clear of the bar.
+- For a bar that ignores page items, use `.tabBottomBar { }` without `for:in:`.
 
-Name every page under the bar with `.tabPage(pathToken:)`, even one with no items of its own: a `NavigationStack` lays its pages out with the window's safe area rather than its own, so the bar's inset never reaches them, and `.tabPage` makes it up so the end of the page scrolls clear of the bar.
+## Example app
 
-`Examples/EnhancedNavigationDemo` is a sample app: `xcodegen generate` in that folder, then build. Launch with `-BarStyle system` to compare against the system bar.
+```sh
+cd Examples/EnhancedNavigationDemo
+xcodegen generate
+```
+
+Launch with `-BarStyle system` to compare against the system bar.
 
 ## Testing
 
-The store's logic is covered by the package's own tests, which need UIKit, so they run on a simulator:
+Unit tests need UIKit, so run them on a simulator:
 
 ```sh
 xcodebuild test -scheme EnhancedNavigation -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-`Examples/EnhancedNavigationHarness` is a test harness app with a page for every feature, and an inspector (in the switcher's top bar, or the catalog's omnibox menu) showing the store's state live. Its UI tests drive each feature end to end: pushing and popping, the back button's history menu, swiping back, overlay pages, media pages, bar items, the switcher's new tab, close, swipe to close and drag to reorder, live tab eviction, restoration across a relaunch, frequently visited roots, page slots and the frame clock.
+`Examples/EnhancedNavigationHarness` has a page for every feature, a live inspector of the store's state, and UI tests covering each feature end to end:
 
 ```sh
 cd Examples/EnhancedNavigationHarness
@@ -97,4 +111,4 @@ xcodegen generate
 xcodebuild test -scheme EnhancedNavigationHarness -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-The UI tests launch with `-ResetState YES` to start from nothing. `-LiveTabLimit <n>` changes how many tabs stay mounted (3 by default in the harness).
+Launch arguments: `-ResetState YES` starts fresh; `-LiveTabLimit <n>` sets how many tabs stay mounted (default 3).
