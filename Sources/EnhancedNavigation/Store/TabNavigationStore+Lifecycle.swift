@@ -73,6 +73,7 @@ public extension TabNavigationStore {
         change(&tabs[index])
         if tabs[index].path.count < previousDepth {
             stopMediaLeftBehind(in: tabID)
+            removeBarItemsLeftBehind(in: tabID)
         }
     }
 
@@ -96,6 +97,7 @@ public extension TabNavigationStore {
 extension TabNavigationStore {
     private func discardState(for tabID: UUID) {
         stopAllMedia(in: tabID)
+        barItems.discard(tabID)
         discardSnapshot(for: tabID)
         pageHistories[tabID] = nil
         overlayPages[tabID] = nil

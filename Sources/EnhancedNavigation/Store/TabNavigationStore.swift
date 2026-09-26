@@ -67,6 +67,9 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     @ObservationIgnored var isPersistenceScheduled = false
     @ObservationIgnored var hasLoadedPersistedSnapshots = false
     @ObservationIgnored var mediaPages: [UUID: [PathToken: MediaPage]] = [:]
+    /// Observed on its own, so a page handing its bar new items does not
+    /// invalidate everything that reads the store.
+    @ObservationIgnored let barItems = TabBarItemRegistry()
 
     /// Side-effect free, so a store made by a view's `@State` initialiser,
     /// which runs on every init of the view, costs nothing when discarded.

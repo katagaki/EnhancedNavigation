@@ -83,6 +83,7 @@ public extension TabNavigationStore {
         frozenCanGoBack = nil
         frozenPageIdentity = nil
         stopMediaLeftBehind(in: selectedTabID)
+        removeBarItemsLeftBehind(in: selectedTabID)
     }
 
     /// Nothing can be pushed while a swipe back is still in flight, so a push

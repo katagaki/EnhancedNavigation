@@ -7,6 +7,8 @@ struct DemoCustomBottomBar: View {
 
     let store: DemoStore
     let tabID: UUID
+    /// What the visible page put in the bar.
+    let items: TabBottomBarItems
 
     var body: some View {
         let identity = store.displayedTab(for: tabID).pageIdentity ?? .home
@@ -23,13 +25,18 @@ struct DemoCustomBottomBar: View {
                 .disabled(!store.displayedCanGoBack(for: tabID))
                 .accessibilityLabel("Back")
 
-                Label(identity.title, systemImage: identity.symbolName)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .contentTransition(.numericText())
-                    .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
-                    .glassEffect(.regular.interactive(), in: .capsule)
-                    .animation(.smooth, value: identity.title)
+                HStack {
+                    Label(identity.title, systemImage: identity.symbolName)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .animation(.smooth, value: identity.title)
+                    items.omniboxAccessory
+                }
+                .padding(.horizontal, 17)
+                .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
+                .glassEffect(.regular.interactive(), in: .capsule)
 
                 Button {
                     store.showTabSwitcher()

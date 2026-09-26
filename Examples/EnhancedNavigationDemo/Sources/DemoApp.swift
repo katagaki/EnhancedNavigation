@@ -53,8 +53,8 @@ struct DemoTabView: View {
         switch DemoBarStyle.current {
         case .custom:
             stack
-                .tabBottomBar {
-                    DemoCustomBottomBar(store: store, tabID: tabID)
+                .tabBottomBar(for: tabID, in: store) { items in
+                    DemoCustomBottomBar(store: store, tabID: tabID, items: items)
                 }
         case .system:
             stack

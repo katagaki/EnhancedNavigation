@@ -54,4 +54,27 @@ NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
     }
 ```
 
+Pages can put their own controls in that bar, the way `.toolbar` does for the system one. Use `.tabBottomBar(for:in:)` so the bar's layout is handed what the visible page declared, and name each page with `.tabPage(pathToken:)`, the token it reports in its identity. A page's items are filed against it, so a page underneath cannot take the bar over as a pop reveals it, and they go when the page leaves the stack.
+
+```swift
+NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
+    .tabBottomBar(for: tab.id, in: store) { items in
+        BackButton()
+        HStack {
+            PageName()
+            items.omniboxAccessory
+        }
+        .glassEffect(in: .capsule)
+        TabsButton()
+    }
+
+ArticleView(article)
+    .tabOmniboxAccessory {
+        Menu("More", systemImage: "ellipsis") { ... }
+    }
+    .tabPage(pathToken: .article(article.id))
+```
+
+`.tabOmniboxAccessory` takes a `Button` or `Menu` and draws its symbol alone. `.tabBottomBarItem(.leading)` and `.tabBottomBarItem(.trailing)` add items beside the omnibox.
+
 `Examples/EnhancedNavigationDemo` is a sample app: `xcodegen generate` in that folder, then build. Launch with `-BarStyle system` to compare against the system bar.

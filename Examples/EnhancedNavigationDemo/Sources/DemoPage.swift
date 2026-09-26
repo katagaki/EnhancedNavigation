@@ -8,6 +8,7 @@ struct DemoPage: View {
 
     let identity: DemoPageIdentity
     let seed: Int
+    @State private var isFavourite = false
 
     var body: some View {
         let page = ScrollView {
@@ -33,6 +34,21 @@ struct DemoPage: View {
             guard let tabID else { return }
             store.setPageIdentity(identity, for: tabID)
         }
+        .tabOmniboxAccessory(isEnabled: identity.pathToken != nil) {
+            Button(
+                isFavourite ? "Unfavourite" : "Favourite",
+                systemImage: isFavourite ? "star.fill" : "star"
+            ) {
+                isFavourite.toggle()
+            }
+        }
+        .tabOmniboxAccessory(isEnabled: identity.pathToken == nil) {
+            Menu("More", systemImage: "ellipsis") {
+                Button("Close Other Tabs", systemImage: "xmark.square") {}
+                Button("Share", systemImage: "square.and.arrow.up") {}
+            }
+        }
+        .tabPage(pathToken: identity.pathToken)
 
         if DemoBarStyle.current == .system, let tabID {
             page
