@@ -7,11 +7,14 @@ public enum TabBottomBarMetrics {
     /// The height of a bar item's glass, and the width of a single-symbol one.
     public static let itemHeight: CGFloat = 48
 
-    /// Between neighbouring items' glass.
-    public static let itemSpacing: CGFloat = 12
+    /// Between neighbouring items' glass, where the system bar's flexible
+    /// spacers settle around a back button, an address field and a tabs
+    /// button.
+    public static let itemSpacing: CGFloat = 14
 
-    /// From the screen's edges to the outermost items' glass.
-    public static let horizontalInset: CGFloat = 24
+    /// From the screen's edges to the outermost items' glass. The system bar
+    /// only gives this up when its items overflow.
+    public static let horizontalInset: CGFloat = 28
 
     /// How far the items' glass hangs below the bottom safe area, into the
     /// home indicator's band.
