@@ -43,8 +43,19 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
     /// edge to edge, so this is usually zero while the window's is not.
     @State private var localBottomInset: CGFloat = 0
 
+    /// The bottom inset the bar gives the view, which a `NavigationStack`
+    /// does not hand on to its pages.
+    @State private var barInset: CGFloat = 0
+
     func body(content: Content) -> some View {
         content
+            .environment(\.tabBottomBarInset, barInset)
+            // Inside the bar, so the inset measured is the one it adds.
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.safeAreaInsets.bottom
+            } action: { inset in
+                barInset = inset
+            }
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 bar
                     .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
@@ -67,6 +78,35 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
         let windowInset = DisplayMetrics.safeAreaInsets.bottom
         return max(windowInset - localBottomInset, 0) - TabBottomBarMetrics.safeAreaOverhang
     }
+}
+
+/// Makes up the part of the bar's inset a page did not get. The stack's
+/// pages are laid out with the window's safe area rather than the stack's,
+/// so without this the end of every page sits under the bar. Measured on the
+/// page rather than assumed, so it adds nothing once a page is given the
+/// full inset.
+struct TabBottomBarPageInsetModifier: ViewModifier {
+
+    @Environment(\.tabBottomBarInset) private var barInset
+    @State private var pageInset: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaPadding(.bottom, max(barInset - pageInset, 0))
+            // Outside the padding, or the page would measure its own
+            // correction and take it back.
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.safeAreaInsets.bottom
+            } action: { inset in
+                pageInset = inset
+            }
+    }
+}
+
+extension EnvironmentValues {
+    /// The bottom inset a `tabBottomBar` gives the view it is on, zero
+    /// outside one.
+    @Entry var tabBottomBarInset: CGFloat = 0
 }
 
 private extension View {

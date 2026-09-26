@@ -45,8 +45,14 @@ public extension View {
 
     /// Names the page the modifiers under it belong to: the same token the
     /// page reports in its `TabPageIdentity`, and nil for a tab's root.
+    ///
+    /// Also clears the tab's bottom bar: a `NavigationStack` lays its pages
+    /// out with the window's safe area rather than its own, so the inset a
+    /// `tabBottomBar` adds never reaches them, and the end of the page would
+    /// otherwise scroll no further than underneath the bar.
     func tabPage<Token: Hashable>(pathToken: Token?) -> some View {
         environment(\.tabPagePathToken, TabPagePathToken(value: pathToken.map(AnyHashable.init)))
+            .modifier(TabBottomBarPageInsetModifier())
     }
 
     /// Puts an item in the tab's bottom bar while this page is the one

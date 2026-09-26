@@ -77,6 +77,8 @@ ArticleView(article)
 
 `.tabOmniboxAccessory` takes a `Button` or `Menu` and draws its symbol alone. `.tabBottomBarItem(.leading)` and `.tabBottomBarItem(.trailing)` add items beside the omnibox.
 
+Name every page under the bar with `.tabPage(pathToken:)`, even one with no items of its own: a `NavigationStack` lays its pages out with the window's safe area rather than its own, so the bar's inset never reaches them, and `.tabPage` makes it up so the end of the page scrolls clear of the bar.
+
 `Examples/EnhancedNavigationDemo` is a sample app: `xcodegen generate` in that folder, then build. Launch with `-BarStyle system` to compare against the system bar.
 
 ## Testing
