@@ -48,7 +48,7 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
                     .padding(.horizontal, TabBottomBarMetrics.horizontalInset)
                     .padding(.bottom, bottomPadding)
             }
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
+            .softBottomScrollEdge()
             // Measured outside the bar, or the bar's own height is counted.
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.safeAreaInsets.bottom
@@ -63,5 +63,17 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
     private var bottomPadding: CGFloat {
         let windowInset = DisplayMetrics.safeAreaInsets.bottom
         return max(windowInset - localBottomInset, 0) - TabBottomBarMetrics.safeAreaOverhang
+    }
+}
+
+private extension View {
+    /// visionOS has no scroll edge effects to style.
+    @ViewBuilder
+    func softBottomScrollEdge() -> some View {
+        #if os(visionOS)
+        self
+        #else
+        scrollEdgeEffectStyle(.soft, for: .bottom)
+        #endif
     }
 }
