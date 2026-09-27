@@ -19,6 +19,10 @@ public enum TabBottomBarMetrics {
     /// How far the items' glass hangs below the bottom safe area, into the
     /// home indicator's band.
     public static let safeAreaOverhang: CGFloat = 6
+
+    /// Between the items' glass and the top of the bar, so the end of a page
+    /// scrolls to rest clear of the glass rather than flush against it.
+    public static let topInset: CGFloat = 12
 }
 
 public extension View {
@@ -60,6 +64,7 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
                 bar
                     .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
                     .padding(.horizontal, TabBottomBarMetrics.horizontalInset)
+                    .padding(.top, TabBottomBarMetrics.topInset)
                     .padding(.bottom, bottomPadding)
             }
             .softBottomScrollEdge()
