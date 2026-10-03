@@ -35,6 +35,9 @@ struct HarnessBottomBar: View {
                 .padding(.horizontal, 17)
                 .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
                 .glassEffect(.regular.interactive(), in: .capsule)
+                .tabSwitchingGesture(for: tabID, in: store)
+                .accessibilityElement(children: .contain)
+                .harnessIdentifier("bar.omnibox")
 
                 if items.hasTrailing {
                     items.trailing

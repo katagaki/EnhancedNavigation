@@ -122,6 +122,9 @@ public struct AdaptiveTabContainer<
         .frame(maxWidth: 520)
         .frame(height: toolbarControlSize)
         .glassEffect(.regular, in: .capsule)
+        .tabSwitchingGesture(for: store.selectedTabID, in: store)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("adaptive.omnibox")
     }
 
     @ViewBuilder

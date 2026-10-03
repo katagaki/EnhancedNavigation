@@ -37,6 +37,7 @@ struct DemoCustomBottomBar: View {
                 .padding(.horizontal, 17)
                 .frame(maxWidth: .infinity, minHeight: TabBottomBarMetrics.itemHeight)
                 .glassEffect(.regular.interactive(), in: .capsule)
+                .tabSwitchingGesture(for: tabID, in: store)
 
                 Button {
                     store.showTabSwitcher()

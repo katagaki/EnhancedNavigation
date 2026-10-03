@@ -45,7 +45,8 @@ struct InteractivePopGestureEnabler: UIViewRepresentable {
             if let edge = controller.interactivePopGestureRecognizer, !recognizers.contains(edge) {
                 recognizers.append(edge)
             }
-            for recognizer in recognizers where recognizer is UIPanGestureRecognizer {
+            for recognizer in recognizers where recognizer is UIPanGestureRecognizer
+                && recognizer.name != tabSwitchingPanGestureName {
                 recognizer.isEnabled = true
                 recognizer.delegate = self
                 observe(recognizer)
@@ -99,13 +100,23 @@ struct InteractivePopGestureEnabler: UIViewRepresentable {
             (navigationController?.viewControllers.count ?? 0) > 1
         }
 
+        /// An omnibox pan chooses tabs. Let it decide whether this touch is a
+        /// horizontal swipe before the full-width navigation pan can begin.
+        func gestureRecognizer(
+            _ recognizer: UIGestureRecognizer,
+            shouldRequireFailureOf other: UIGestureRecognizer
+        ) -> Bool {
+            other.name == tabSwitchingPanGestureName
+        }
+
         /// The swipe-from-anywhere sits over the page's own scroll views, so
         /// it has to share with them; the edge swipe keeps to itself.
         func gestureRecognizer(
             _ recognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
         ) -> Bool {
-            !(recognizer is UIScreenEdgePanGestureRecognizer)
+            other.name != tabSwitchingPanGestureName
+                && !(recognizer is UIScreenEdgePanGestureRecognizer)
         }
     }
 }

@@ -95,6 +95,14 @@ NavigationStack(path: store.pathBinding(for: tab.id)) { ... }
     }
 ```
 
+To switch tabs by swiping horizontally, apply `.tabSwitchingGesture(for: tab.id,
+in: store, isEnabled: !isEditingAddress)` to your omnibox. Left selects the next
+tab and right selects the previous tab in the current order. Selection commits
+on release after a horizontal drag; short drags leave the current tab selected.
+The ends do not wrap or open tabs. The iPad and Catalyst omnibox in
+`AdaptiveTabContainer` includes this gesture automatically. The modifier has no
+effect on visionOS.
+
 Pages add their own controls to it:
 
 ```swift
