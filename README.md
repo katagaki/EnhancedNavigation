@@ -11,6 +11,7 @@ Safari-style tabs for SwiftUI, each tab with its own `NavigationPath`.
 | `TabZoomContainer`, `TabSwitcher` | A full-screen tab grid the page zooms down onto. |
 | `AdaptiveTabContainer` | Keeps the iPhone zoom UI and adds a Safari-style tab strip and card overview on iPad and Mac Catalyst. |
 | `.tabBottomBar { }` | A custom bottom bar laid out like the system `.bottomBar`. |
+| `.tabOmniboxEditing`, `.tabOmniboxPopup` | An editable wide-layout omnibox with a suggestions panel beneath it. |
 | `.interactivePopGesture(for:)` | Keeps swipe back working with the navigation bar hidden. |
 
 Also: `.tabCardFrame(id:in:)`, `TabSnapshotView`, `TabSnapshotHeaderBlur`, `TabBottomBarMetrics`, `.reorderableTab(id:in:)`, `PageSlot`, `OverlayPage`, `FrameClock`, `DisplayMetrics`.
@@ -77,6 +78,28 @@ layout. On iPad and
 Catalyst, register each tab's page controls with `.registersTabBarItems(for:in:)`
 so the top bar shows
 them. The bottom bar remains the iPhone presentation.
+
+To let people type into the wide layout's omnibox, attach
+`.tabOmniboxEditing(isEditing:field:)`. Tapping the omnibox, or pressing
+Command-L, sets `isEditing`, and your field replaces the tab label. Escape,
+switching tabs, or tapping the page sets it back. Add
+`.tabOmniboxPopup(isPresented:maxHeight:content:)` for a Safari-style panel
+beneath the field while it is editing. Give the panel content that hugs its
+height; it scrolls once it reaches `maxHeight` or the keyboard.
+
+```swift
+AdaptiveTabContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRadius) {
+    ...
+}
+.tabOmniboxEditing(isEditing: $isEditingAddress) {
+    TextField("Search or enter address", text: $query)
+}
+.tabOmniboxPopup(isPresented: !suggestions.isEmpty) {
+    SuggestionList(suggestions)
+}
+```
+
+Both have no effect on iPhone, where the omnibox lives in your own bottom bar.
 
 ## Bottom bar
 

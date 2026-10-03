@@ -18,6 +18,9 @@ public struct AdaptiveTabContainer<
     private let page: (CGFloat) -> Page
     private let tabLabel: (Tab) -> TabLabel
 
+    @Environment(\.tabOmniboxEditor) private var omniboxEditor
+    @Environment(\.tabOmniboxPopup) private var omniboxPopup
+
     /// How far the window controls reach into the toolbar's leading corner.
     @State private var windowControlsWidth: CGFloat = 0
 
@@ -59,6 +62,15 @@ public struct AdaptiveTabContainer<
                 .opacity(store.isShowingTabSwitcher ? 1 : 0.001)
         } page: { width in
             page(width)
+                .overlay {
+                    if isEditingOmnibox {
+                        // Under the toolbar's safe area bar, so the bar and
+                        // its field stay usable while the page dismisses.
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { endOmniboxEditing() }
+                    }
+                }
                 .environment(\.tabTopBarInset, topBarInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 // Inside the bar, so the inset measured is the one it adds.
@@ -80,8 +92,24 @@ public struct AdaptiveTabContainer<
                     // the toolbar never shows above it.
                     .background(.bar, ignoresSafeAreaEdges: .top)
                 }
+                .overlayPreferenceValue(TabOmniboxBoundsKey.self) { anchor in
+                    if isEditingOmnibox, let omniboxPopup, omniboxPopup.isPresented {
+                        TabOmniboxPopupLayer(anchor: anchor, popup: omniboxPopup)
+                            .transition(.opacity)
+                    }
+                }
                 .background(Color(uiColor: .systemBackground))
+                .onChange(of: store.selectedTabID) { _, _ in endOmniboxEditing() }
         }
+    }
+
+    private var isEditingOmnibox: Bool {
+        omniboxEditor?.isEditing.wrappedValue ?? false
+    }
+
+    private func endOmniboxEditing() {
+        guard isEditingOmnibox else { return }
+        omniboxEditor?.isEditing.wrappedValue = false
     }
 
     private var toolbar: some View {
@@ -158,20 +186,47 @@ public struct AdaptiveTabContainer<
 
     private func omnibox(_ items: TabBottomBarItems, embedsAccessory: Bool) -> some View {
         HStack(spacing: 8) {
-            tabLabel(store.displayedTab)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-            if embedsAccessory {
-                items.omniboxAccessory
+            if let omniboxEditor, isEditingOmnibox {
+                omniboxEditor.field()
+                    .frame(maxWidth: .infinity)
+                    .onKeyPress(.escape) {
+                        endOmniboxEditing()
+                        return .handled
+                    }
+            } else {
+                omniboxLabel
+                if embedsAccessory {
+                    items.omniboxAccessory
+                }
             }
         }
         .padding(.horizontal, 14)
         .frame(maxWidth: 520)
         .frame(height: toolbarControlSize)
         .glassEffect(.regular, in: .capsule)
-        .tabSwitchingGesture(for: store.selectedTabID, in: store)
+        .anchorPreference(key: TabOmniboxBoundsKey.self, value: .bounds) { $0 }
+        .tabSwitchingGesture(for: store.selectedTabID, in: store, isEnabled: !isEditingOmnibox)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("adaptive.omnibox")
+    }
+
+    @ViewBuilder
+    private var omniboxLabel: some View {
+        let label = tabLabel(store.displayedTab)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+        if let omniboxEditor {
+            Button {
+                omniboxEditor.isEditing.wrappedValue = true
+            } label: {
+                label.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut("l", modifiers: .command)
+            .accessibilityIdentifier("adaptive.omnibox.edit")
+        } else {
+            label
+        }
     }
 
     @ViewBuilder
