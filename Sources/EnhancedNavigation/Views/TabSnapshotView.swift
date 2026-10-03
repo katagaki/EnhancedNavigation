@@ -43,6 +43,7 @@ public struct TabSnapshotHeaderBlur<Root: TabRoot, Identity: TabPageIdentity>: V
     private let store: TabNavigationStore<Root, Identity>
     private let tabID: UUID
     @State private var blurred: UIImage?
+    @State private var width: CGFloat = 0
 
     public init(store: TabNavigationStore<Root, Identity>, tabID: UUID) {
         self.store = store
@@ -62,19 +63,31 @@ public struct TabSnapshotHeaderBlur<Root: TabRoot, Identity: TabPageIdentity>: V
             }
         }
         .allowsHitTesting(false)
-        .task(id: snapshot.map(ObjectIdentifier.init)) {
-            guard let snapshot else {
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width.rounded()
+        } action: { newWidth in
+            width = newWidth
+        }
+        // Rendered again for a new width too: the blur is sized in the
+        // points the card draws the snapshot at.
+        .task(id: BlurKey(snapshot: snapshot.map(ObjectIdentifier.init), width: width)) {
+            guard let snapshot, width > 0 else {
                 blurred = nil
                 return
             }
-            if let cached = ProgressiveBlurRenderer.cached(for: snapshot) {
+            if let cached = ProgressiveBlurRenderer.cached(for: snapshot, displayWidth: width) {
                 blurred = cached
                 return
             }
             // Cleared first: the previous snapshot's blur, over the new one,
             // shows the old page's title through the header.
             blurred = nil
-            blurred = await ProgressiveBlurRenderer.render(snapshot)
+            blurred = await ProgressiveBlurRenderer.render(snapshot, displayWidth: width)
         }
+    }
+
+    private struct BlurKey: Hashable {
+        let snapshot: ObjectIdentifier?
+        let width: CGFloat
     }
 }
