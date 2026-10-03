@@ -18,6 +18,13 @@ public struct AdaptiveTabContainer<
     private let page: (CGFloat) -> Page
     private let tabLabel: (Tab) -> TabLabel
 
+    /// How far the window controls reach into the toolbar's leading corner.
+    @State private var windowControlsWidth: CGFloat = 0
+
+    /// The top inset the toolbar gives the page, which a `NavigationStack`
+    /// does not hand on to its pages.
+    @State private var topBarInset: CGFloat = 0
+
     public init(
         store: TabNavigationStore<Root, Identity>,
         cardCornerRadius: CGFloat,
@@ -51,18 +58,29 @@ public struct AdaptiveTabContainer<
                 // toolbar stays out of the glass chrome above the page.
                 .opacity(store.isShowingTabSwitcher ? 1 : 0.001)
         } page: { width in
-            VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    toolbar
-                    if store.tabs.count > 1 {
-                        tabStrip
-                    }
+            page(width)
+                .environment(\.tabTopBarInset, topBarInset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // Inside the bar, so the inset measured is the one it adds.
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.safeAreaInsets.top
+                } action: { inset in
+                    topBarInset = inset
                 }
-                .background(.regularMaterial)
-                page(width)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color(uiColor: .systemBackground))
+                // A safe area bar rather than a stack, so pages scroll on
+                // underneath the bar's material.
+                .safeAreaBar(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        toolbar
+                        if store.tabs.count > 1 {
+                            tabStrip
+                        }
+                    }
+                    // Up behind the status bar too, so content scrolling past
+                    // the toolbar never shows above it.
+                    .background(.bar, ignoresSafeAreaEdges: .top)
+                }
+                .background(Color(uiColor: .systemBackground))
         }
     }
 
@@ -70,51 +88,80 @@ public struct AdaptiveTabContainer<
         TabBottomBarItemsReader(store: store, tabID: store.selectedTabID) { items in
             GlassEffectContainer(spacing: 8) {
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) {
-                        backButton
-                        leadingControl(items)
-                        Spacer(minLength: 24)
-                        omnibox(items)
-                            .frame(minWidth: 160, idealWidth: 160)
-                        accessoryControl(items)
-                        Spacer(minLength: 24)
-                        trailingControl(items)
-                        newTabButton
-                        overviewButton
-                    }
-
-                    VStack(spacing: 8) {
-                        HStack(spacing: 8) {
-                            Spacer(minLength: 0)
-                            omnibox(items)
-                            accessoryControl(items)
-                            Spacer(minLength: 0)
-                        }
-                        HStack(spacing: 8) {
-                            backButton
-                            leadingControl(items)
-                            Spacer(minLength: 0)
-                            trailingControl(items)
-                            newTabButton
-                            overviewButton
-                        }
-                    }
+                    regularToolbar(items)
+                    compactToolbar(items)
+                    stackedToolbar(items)
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: TabBottomBarMetrics.symbolSize, weight: .medium))
                 .foregroundStyle(.primary)
             }
-            .padding(.horizontal, 16)
+            // Clear of the window controls when iPadOS shows them beside the
+            // toolbar rather than above it.
+            .padding(.leading, max(16, windowControlsWidth))
+            .padding(.trailing, 16)
             .padding(.vertical, 8)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.containerCornerInsets.topLeading.width
+            } action: { width in
+                windowControlsWidth = width
+            }
         }
     }
 
-    private func omnibox(_ items: TabBottomBarItems) -> some View {
+    /// Navigation, the omnibox and the tab buttons spread across a full-width
+    /// window.
+    private func regularToolbar(_ items: TabBottomBarItems) -> some View {
+        HStack(spacing: 8) {
+            backButton
+            leadingControl(items)
+            Spacer(minLength: 24)
+            omnibox(items, embedsAccessory: !Self.separatesOmniboxAccessory)
+                .frame(minWidth: 160, idealWidth: 160)
+            accessoryControl(items)
+            Spacer(minLength: 24)
+            trailingControl(items)
+            newTabButton
+            overviewButton
+        }
+    }
+
+    /// One row for a narrow window, the omnibox taking whatever the buttons
+    /// leave and keeping the page's accessory inside it.
+    private func compactToolbar(_ items: TabBottomBarItems) -> some View {
+        HStack(spacing: 8) {
+            backButton
+            leadingControl(items)
+            omnibox(items, embedsAccessory: true)
+                .frame(minWidth: 120, idealWidth: 120)
+            trailingControl(items)
+            newTabButton
+            overviewButton
+        }
+    }
+
+    /// The omnibox across the window over a row of buttons, for a window too
+    /// narrow to give it room beside them.
+    private func stackedToolbar(_ items: TabBottomBarItems) -> some View {
+        VStack(spacing: 8) {
+            omnibox(items, embedsAccessory: true)
+            HStack(spacing: 8) {
+                backButton
+                leadingControl(items)
+                Spacer(minLength: 0)
+                trailingControl(items)
+                newTabButton
+                overviewButton
+            }
+        }
+    }
+
+    private func omnibox(_ items: TabBottomBarItems, embedsAccessory: Bool) -> some View {
         HStack(spacing: 8) {
             tabLabel(store.displayedTab)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
-            if !Self.separatesOmniboxAccessory {
+            if embedsAccessory {
                 items.omniboxAccessory
             }
         }
@@ -204,7 +251,7 @@ public struct AdaptiveTabContainer<
     private var tabStrip: some View {
         GeometryReader { geometry in
             let tabWidth = max(
-                160,
+                geometry.size.width < 600 ? 120 : 160,
                 (geometry.size.width - 24 - CGFloat(store.tabs.count - 1) * 4)
                     / CGFloat(store.tabs.count)
             )
@@ -234,8 +281,10 @@ public struct AdaptiveTabContainer<
                             .font(.subheadline)
                             .padding(.horizontal, 12)
                             .frame(width: tabWidth, height: 38)
-                            .background(
-                                tab.id == store.selectedTabID ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.clear),
+                            // Identity rather than no modifier, so selecting a
+                            // tab never rebuilds the strip's views.
+                            .glassEffect(
+                                tab.id == store.selectedTabID ? .regular.interactive() : .identity,
                                 in: .capsule
                             )
                             .id(tab.id)

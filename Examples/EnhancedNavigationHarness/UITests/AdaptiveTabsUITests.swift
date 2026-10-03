@@ -151,3 +151,22 @@ final class NarrowAdaptiveTabsUITests: HarnessUITestCase {
         XCTAssertLessThan(first.maxY, second.minY)
     }
 }
+
+final class CompactAdaptiveTabsUITests: HarnessUITestCase {
+    override var extraLaunchArguments: [String] { ["-AdaptivePreviewWidth", "440"] }
+
+    func testIPadCompactToolbarKeepsOneRow() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("Requires iPad") }
+        tap("catalog.barItems")
+        let controls = [element("barItems.leading"), element("barItems.trailing"),
+                        element("barItems.accessory"), app.buttons["Back"],
+                        app.buttons["New Tab"], app.buttons["Show All Tabs"]]
+        let row = app.buttons["Show All Tabs"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        for control in controls {
+            XCTAssertTrue(control.waitForExistence(timeout: 5))
+            XCTAssertTrue(control.isHittable)
+            XCTAssertEqual(control.frame.midY, row.frame.midY, accuracy: 4)
+        }
+    }
+}
