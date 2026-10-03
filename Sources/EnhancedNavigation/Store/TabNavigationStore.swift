@@ -41,6 +41,13 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     var frozenCanGoBack: Bool?
     var frozenPageIdentity: Identity?
 
+    /// Kept apart from the translation, which changes every frame of a
+    /// swipe, so only the pages read it and not the whole stack.
+    public internal(set) var tabSwipeNeighbour: TabSwipeNeighbour?
+    public internal(set) var tabSwipeTranslation: CGFloat = 0
+    @ObservationIgnored var tabSwipePageWidth: CGFloat = 0
+    @ObservationIgnored var tabSwipeGeneration = 0
+
     /// Routed through the store rather than a preference: a switcher's
     /// NavigationStack does not propagate preferences out to the shell.
     public internal(set) var cardFrames: [UUID: CGRect] = [:]

@@ -4,8 +4,9 @@ public extension View {
     /// Swipe left for the next tab or right for the previous tab, in tab order.
     /// Apply to the omnibox rather than the page, so navigation and scrolling
     /// gestures keep their own touch area. Disable while editing an address.
-    /// Selection changes on release; a short or cancelled drag does nothing.
-    /// The first and last tabs do not wrap or create a new tab.
+    /// The pages in a `LiveTabStack` follow the finger, and the swipe settles
+    /// on the neighbouring tab or springs back on release. The first and last
+    /// tabs do not wrap or create a new tab.
     @ViewBuilder
     func tabSwitchingGesture<Root, Identity>(
         for tabID: UUID,
@@ -20,18 +21,15 @@ public extension View {
             && !store.isShowingTabSwitcher && !store.isPageClipActive
         self
             .contentShape(Rectangle())
-            .gesture(TabSwitchingPanGesture(isEnabled: canSwipe) { translation in
-                // Recheck on release: the tab could have closed, been selected
-                // elsewhere, or entered a navigation transition during the pan.
-                guard isEnabled, store.selectedTabID == tabID,
-                      !store.isInteractivelyPopping, !store.isShowingTabSwitcher,
-                      !store.isPageClipActive,
-                      let index = store.tabs.firstIndex(where: { $0.id == tabID })
-                else { return }
-                let destination = index + (translation < 0 ? 1 : -1)
-                guard store.tabs.indices.contains(destination) else { return }
-                store.select(store.tabs[destination].id)
-            })
+            .gesture(TabSwitchingPanGesture(
+                isEnabled: canSwipe,
+                // Rechecked as the pan begins: the tab could have closed, been
+                // selected elsewhere, or entered a navigation transition.
+                shouldBegin: { isEnabled && store.selectedTabID == tabID && store.canBeginTabSwipe },
+                onChange: { store.updateTabSwipe(translation: $0) },
+                onEnd: { store.endTabSwipe(velocity: $0) },
+                onCancel: { store.cancelTabSwipe() }
+            ))
         #endif
     }
 }
@@ -41,7 +39,10 @@ public extension View {
 /// alone until an intentional horizontal pan begins.
 private struct TabSwitchingPanGesture: UIGestureRecognizerRepresentable {
     let isEnabled: Bool
-    let onSwipe: (CGFloat) -> Void
+    let shouldBegin: () -> Bool
+    let onChange: (CGFloat) -> Void
+    let onEnd: (CGFloat) -> Void
+    let onCancel: () -> Void
 
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
         Coordinator()
@@ -57,21 +58,48 @@ private struct TabSwitchingPanGesture: UIGestureRecognizerRepresentable {
     }
 
     func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        // Left alone mid-swipe: the selection changes as it settles, and
+        // disabling a recognizer cancels it.
+        guard !context.coordinator.isTracking else { return }
         recognizer.isEnabled = isEnabled
     }
 
     func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        guard isEnabled, recognizer.state == .ended else { return }
-        let translation = recognizer.translation(in: recognizer.view)
-        guard abs(translation.x) >= 36,
-              abs(translation.x) > abs(translation.y) * 1.25 else { return }
-        onSwipe(translation.x)
+        let coordinator = context.coordinator
+        switch recognizer.state {
+        case .began:
+            coordinator.isTracking = shouldBegin()
+            if coordinator.isTracking {
+                onChange(horizontalTranslation(of: recognizer))
+            }
+        case .changed:
+            guard coordinator.isTracking else { return }
+            onChange(horizontalTranslation(of: recognizer))
+        case .ended:
+            guard coordinator.isTracking else { return }
+            coordinator.isTracking = false
+            // In the window, like the translation: the omnibox moves with
+            // its page, so its own coordinates would slide under the finger.
+            onEnd(recognizer.velocity(in: nil).x)
+        case .cancelled, .failed:
+            guard coordinator.isTracking else { return }
+            coordinator.isTracking = false
+            onCancel()
+        default:
+            break
+        }
+    }
+
+    private func horizontalTranslation(of recognizer: UIPanGestureRecognizer) -> CGFloat {
+        recognizer.translation(in: nil).x
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var isTracking = false
+
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
-            let velocity = pan.velocity(in: pan.view)
+            let velocity = pan.velocity(in: nil)
             return abs(velocity.x) > abs(velocity.y) * 1.25
         }
     }
