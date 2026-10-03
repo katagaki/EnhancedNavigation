@@ -25,6 +25,9 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     /// Drives the geometry, and is what the transition animates.
     public internal(set) var isPageCollapsed = false
 
+    /// Keeps the zoom crop in place until the page has finished expanding.
+    public internal(set) var isPageClipActive = false
+
     /// Hands the card's snapshot the collapsed page's place. Flipped only once
     /// the spring has settled: swapping on a fraction of the duration leaves
     /// the page a few points short of the snapshot, and the two cross-fade

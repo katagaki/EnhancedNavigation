@@ -1,7 +1,7 @@
 import Observation
 import SwiftUI
 
-/// Where a page's item goes in its tab's bottom bar.
+/// Where a page's item goes in its tab's chrome.
 public enum TabBottomBarItemPlacement: Hashable, Sendable {
     /// Beside the omnibox, on its leading side.
     case leading

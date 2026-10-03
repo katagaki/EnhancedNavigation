@@ -5,9 +5,8 @@ public enum TabSwitcherCardMetrics {
     /// For `TabZoomContainer`, so the page lands on the card's own corners.
     public static let cornerRadius: CGFloat = 16
 
-    /// Portrait, but far shorter than the screen: at the screen's ratio a card
-    /// runs most of the height of the switcher.
-    static let previewAspectRatio: CGFloat = 0.75
+    /// Compact phone cards stay shorter than the full screen.
+    static let phonePreviewAspectRatio: CGFloat = 0.75
 
     static let closeDistance: CGFloat = 90
 

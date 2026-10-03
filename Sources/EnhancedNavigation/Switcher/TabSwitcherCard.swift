@@ -8,6 +8,7 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
     let tab: NavigationTab<Root, Identity>
     let isSelected: Bool
     let closeLabel: String
+    let previewAspectRatio: CGFloat
     let onSelect: () -> Void
     let onClose: () -> Void
     let placeholderIcon: TabSwitcherPlaceholderIcon
@@ -28,7 +29,7 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
             // Ratio driven off a flexible shape, not the preview: a stand-in
             // has no intrinsic size for aspectRatio to work from.
             Color.clear
-                .aspectRatio(Metrics.previewAspectRatio, contentMode: .fit)
+                .aspectRatio(previewAspectRatio, contentMode: .fit)
                 .overlay(alignment: .top) {
                     TabSnapshotView(store: store, tabID: tab.id) {
                         TabSwitcherCardPlaceholder(icon: placeholderIcon)
@@ -71,6 +72,7 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
         // High priority: the card is a button, which otherwise swallows the drag.
         .highPriorityGesture(closeDragGesture)
         .buttonStyle(.plain)
+        .accessibilityIdentifier("switcher.card")
         // Tapped on crossing either way, so the release point is felt.
         .sensoryFeedback(.impact(weight: .light), trigger: isPastCloseDistance)
         .onChange(of: isHeaderShown, initial: true) { _, isShown in
@@ -124,5 +126,6 @@ extension TabSwitcherCard: Equatable {
             && lhs.tab.root == rhs.tab.root
             && lhs.tab.pageIdentity == rhs.tab.pageIdentity
             && lhs.isSelected == rhs.isSelected
+            && lhs.previewAspectRatio == rhs.previewAspectRatio
     }
 }

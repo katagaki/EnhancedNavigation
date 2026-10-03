@@ -2,10 +2,18 @@ import SwiftUI
 
 public extension TabNavigationStore {
 
+    /// Shows the tab grid from a layout that keeps a visible tab strip.
+    func showTabOverview() {
+        showTabSwitcher()
+    }
+
     func showTabSwitcher() {
         captureSelectedTabSnapshot()
         freezeCollapseTarget()
-        setWithoutAnimation { isShowingTabSwitcher = true }
+        setWithoutAnimation {
+            isPageClipActive = true
+            isShowingTabSwitcher = true
+        }
         withAnimation(configuration.switcherAnimation, completionCriteria: .removed) {
             isPageCollapsed = true
         } completion: {
@@ -21,6 +29,11 @@ public extension TabNavigationStore {
     /// the growing page, and swaps the bars under it at the very end, which
     /// nudges the page's content as it settles.
     func hideTabSwitcher() {
+        if !isPageCollapsed {
+            endReordering()
+            setWithoutAnimation { isShowingTabSwitcher = false }
+            return
+        }
         freezeCollapseTarget()
         // A drag let go of outside the grid is not reported before iOS 27,
         // so its placeholder would otherwise greet the next visit.
@@ -32,8 +45,11 @@ public extension TabNavigationStore {
         // the growth. Behind the snapshot it costs nothing.
         Task { @MainActor in
             self.setWithoutAnimation { self.isPageSwappedForSnapshot = false }
-            withAnimation(self.configuration.switcherAnimation) {
+            withAnimation(self.configuration.switcherAnimation, completionCriteria: .removed) {
                 self.isPageCollapsed = false
+            } completion: {
+                guard !self.isPageCollapsed, !self.isShowingTabSwitcher else { return }
+                self.setWithoutAnimation { self.isPageClipActive = false }
             }
         }
     }

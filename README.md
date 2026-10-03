@@ -9,6 +9,7 @@ Safari-style tabs for SwiftUI, each tab with its own `NavigationPath`.
 | `TabPageIdentity` | What a page reports about itself. Its `pathToken` re-pushes the page after a relaunch. |
 | `LiveTabStack` | Mounts recently used tabs and hides the rest. |
 | `TabZoomContainer`, `TabSwitcher` | A full-screen tab grid the page zooms down onto. |
+| `AdaptiveTabContainer` | Keeps the iPhone zoom UI and adds a Safari-style tab strip and card overview on iPad and Mac Catalyst. |
 | `.tabBottomBar { }` | A custom bottom bar laid out like the system `.bottomBar`. |
 | `.interactivePopGesture(for:)` | Keeps swipe back working with the navigation bar hidden. |
 
@@ -52,6 +53,30 @@ TabZoomContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRa
 
 - `placeholderIcon` is `.systemImage(_:)` or `.asset(_:bundle:)`, shown for tabs with no snapshot yet.
 - `topTrailingItem` is optional.
+
+For a shell that adapts between iPhone and iPad, use `AdaptiveTabContainer` in
+place of `TabZoomContainer` and provide a short label for each tab:
+
+```swift
+AdaptiveTabContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.cornerRadius) {
+    TabSwitcher(store: store, rebuildingPath: rebuildPath) { tab in
+        Text(tab.pageIdentity?.title ?? "New Tab")
+    }
+} page: { _ in
+    LiveTabStack(store: store) { tab in ... }
+} tabLabel: { tab in
+    Text(tab.pageIdentity?.title ?? "New Tab")
+}
+```
+
+The wide layout shows a tab strip after a second tab opens. Its page zooms into
+the selected overview card with the same transition as iPhone. Overview cards
+follow the iPad or Catalyst window's aspect ratio as it rotates or resizes.
+Native macOS is not currently a package target; Mac Catalyst uses the wide
+layout. On iPad and
+Catalyst, register each tab's page controls with `.registersTabBarItems(for:in:)`
+so the top bar shows
+them. The bottom bar remains the iPhone presentation.
 
 ## Bottom bar
 

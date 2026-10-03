@@ -10,6 +10,7 @@ nonisolated struct CollapsingPageClipShape: Shape {
     private static let tuckingStart: CGFloat = 0.85
 
     var progress: CGFloat
+    var isActive: Bool = true
     let expanded: CGRect
     let collapsed: CGRect
     let expandedRadius: CGFloat
@@ -21,6 +22,11 @@ nonisolated struct CollapsingPageClipShape: Shape {
     }
 
     func path(in bounds: CGRect) -> Path {
+        // Keep the modifier and page identity stable when the transition ends.
+        // An oversized rect leaves safe-area and hosted content uncropped.
+        guard isActive else {
+            return Path(CGRect(x: -1_000_000, y: -1_000_000, width: 2_000_000, height: 2_000_000))
+        }
         let zoom = min(max(progress, 0), 1)
         let width = interpolate(expanded.width, collapsed.width, zoom)
         let rect = CGRect(

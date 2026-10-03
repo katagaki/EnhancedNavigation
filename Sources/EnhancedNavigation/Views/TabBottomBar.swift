@@ -7,6 +7,10 @@ public enum TabBottomBarMetrics {
     /// The height of a bar item's glass, and the width of a single-symbol one.
     public static let itemHeight: CGFloat = 48
 
+    /// The point size of a bar item's symbol. Fixed rather than following
+    /// Dynamic Type, so the symbols keep to the glass they sit in.
+    public static let symbolSize: CGFloat = 17
+
     /// Between neighbouring items' glass, where the system bar's flexible
     /// spacers settle around a back button, an address field and a tabs
     /// button.

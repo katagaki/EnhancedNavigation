@@ -80,6 +80,7 @@ public struct TabZoomContainer<Root: TabRoot, Identity: TabPageIdentity, Switche
         )
         return CollapsingPageClipShape(
             progress: store.isPageCollapsed ? 1 : 0,
+            isActive: store.isPageClipActive,
             expanded: screen,
             collapsed: store.collapseTarget ?? screen,
             expandedRadius: DisplayMetrics.displayCornerRadius,

@@ -19,8 +19,6 @@ public struct TabSwitcher<
     private let topTrailingItem: TopTrailingItem
     @State private var isDismissing = false
 
-    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 16)]
-
     public init(
         store: TabNavigationStore<Root, Identity>,
         strings: TabSwitcherStrings = TabSwitcherStrings(),
@@ -39,26 +37,29 @@ public struct TabSwitcher<
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(store.tabs) { tab in
-                        TabSwitcherCard(
-                            store: store,
-                            tab: tab,
-                            isSelected: tab.id == store.selectedTabID,
-                            closeLabel: strings.closeTab,
-                            onSelect: { select(tab.id) },
-                            onClose: { close(tab.id) },
-                            placeholderIcon: placeholderIcon,
-                            label: cardLabel
-                        )
-                        .equatable()
-                        .reorderableTab(id: tab.id, in: store)
+            GeometryReader { geometry in
+                ScrollView {
+                    LazyVGrid(columns: columns(for: geometry.size.width), spacing: 16) {
+                        ForEach(store.tabs) { tab in
+                            TabSwitcherCard(
+                                store: store,
+                                tab: tab,
+                                isSelected: tab.id == store.selectedTabID,
+                                closeLabel: strings.closeTab,
+                                previewAspectRatio: previewAspectRatio(in: geometry.size),
+                                onSelect: { select(tab.id) },
+                                onClose: { close(tab.id) },
+                                placeholderIcon: placeholderIcon,
+                                label: cardLabel
+                            )
+                            .equatable()
+                            .reorderableTab(id: tab.id, in: store)
+                        }
                     }
+                    .padding(16)
                 }
-                .padding(16)
+                .endsTabReordering(in: store)
             }
-            .endsTabReordering(in: store)
             .navigationTitle(strings.title(store.tabs.count))
             .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
@@ -89,28 +90,79 @@ public struct TabSwitcher<
                 topTrailingItem
             }
         }
-        ToolbarItem(placement: .bottomBar) {
-            Button {
-                guard !isDismissing else { return }
-                store.openTab()
-                // Once drawn, so the new tab's card has reported the rect the
-                // page grows from and its stack is mounted before the growth.
-                dismissOnceSettled()
-            } label: {
-                Image(systemName: "plus")
+        if usesWideLayout {
+            ToolbarItem(placement: .topBarTrailing) {
+                newTabButton
             }
-            .accessibilityLabel(strings.newTab)
+            ToolbarItem(placement: .topBarTrailing) {
+                doneButton
+            }
+        } else {
+            ToolbarItem(placement: .bottomBar) {
+                newTabButton
+            }
+            #if !os(visionOS)
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            #endif
+            ToolbarItem(placement: .bottomBar) {
+                doneButton
+            }
         }
+    }
 
-        #if !os(visionOS)
-        ToolbarSpacer(.flexible, placement: .bottomBar)
+    private var newTabButton: some View {
+        Button {
+            guard !isDismissing else { return }
+            store.openTab()
+            // Let the new stack mount before revealing it.
+            dismissOnceSettled()
+        } label: {
+            Image(systemName: "plus")
+        }
+        .accessibilityLabel(strings.newTab)
+    }
+
+    private var doneButton: some View {
+        Group {
+            if usesWideLayout {
+                Button {
+                    store.hideTabSwitcher()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.circle)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("Done")
+            } else {
+                Button(role: .confirm) { store.hideTabSwitcher() }
+            }
+        }
+    }
+
+    private func columns(for width: CGFloat) -> [GridItem] {
+        if usesWideLayout {
+            let count = width >= 1000 ? 3 : 2
+            return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+        }
+        return [GridItem(.adaptive(minimum: 150), spacing: 16)]
+    }
+
+    private func previewAspectRatio(in size: CGSize) -> CGFloat {
+        guard usesWideLayout, size.width > 0, size.height > 0 else {
+            return TabSwitcherCardMetrics.phonePreviewAspectRatio
+        }
+        return size.width / size.height
+    }
+
+    private var usesWideLayout: Bool {
+        #if targetEnvironment(macCatalyst)
+        true
+        #else
+        UIDevice.current.userInterfaceIdiom == .pad
         #endif
-
-        ToolbarItem(placement: .bottomBar) {
-            Button(role: .confirm) {
-                store.hideTabSwitcher()
-            }
-        }
     }
 
     private func select(_ tabID: UUID) {

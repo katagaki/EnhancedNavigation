@@ -13,7 +13,7 @@ struct CatalogPage: View {
         var identity = HarnessPageIdentity.catalog
         identity.pathToken = token
         return HarnessPage(identity: identity) {
-            Text("A test harness for EnhancedNavigation. Each feature is a page of its own; the bar below is the package's custom bottom bar.")
+            Text("A test harness for EnhancedNavigation. Each feature is a page of its own, with controls in the adaptive bar.")
                 .foregroundStyle(.secondary)
 
             HarnessSection("Features") {

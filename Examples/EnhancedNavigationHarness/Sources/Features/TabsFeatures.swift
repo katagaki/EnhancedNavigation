@@ -10,7 +10,7 @@ struct SwitcherFeaturePage: View {
     var body: some View {
         HarnessPage(identity: identity) {
             HarnessSection("Try It") {
-                Text("Open the switcher from the tab count in the bar. The page zooms down onto its card. Swipe a card left to close it, or press and hold one and drag it: a placeholder shows where it will land.")
+                Text("Open the tab overview from the bar. Swipe a card left to close it, or press and hold one and drag it: a placeholder shows where it will land.")
                 Button("Open Four Tabs to Rearrange", systemImage: "plus.square.on.square") {
                     for feature in [Feature.media, .barItems, .liveTabs, .utilities] {
                         store.openTab(at: .feature(feature), inBackground: true)

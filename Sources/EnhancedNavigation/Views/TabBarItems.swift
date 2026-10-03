@@ -37,10 +37,19 @@ public extension View {
         in store: TabNavigationStore<Root, Identity>,
         @ViewBuilder _ bar: @escaping (TabBottomBarItems) -> Bar
     ) -> some View {
-        environment(\.tabBarItemRegistrar, TabBarItemRegistrar(registry: store.barItems, tabID: tabID))
+        registersTabBarItems(for: tabID, in: store)
             .tabBottomBar {
                 TabBottomBarItemsReader(store: store, tabID: tabID, bar: bar)
             }
+    }
+
+    /// Registers page controls for a tab whose chrome is supplied elsewhere,
+    /// such as the top toolbar in `AdaptiveTabContainer` on iPad.
+    func registersTabBarItems<Root, Identity>(
+        for tabID: UUID,
+        in store: TabNavigationStore<Root, Identity>
+    ) -> some View {
+        environment(\.tabBarItemRegistrar, TabBarItemRegistrar(registry: store.barItems, tabID: tabID))
     }
 
     /// Names the page the modifiers under it belong to: the same token the
@@ -55,10 +64,10 @@ public extension View {
             .modifier(TabBottomBarPageInsetModifier())
     }
 
-    /// Puts an item in the tab's bottom bar while this page is the one
+    /// Puts an item in the tab's bar while this page is the one
     /// showing, the way `.toolbar` does for the system bar. Filed against the
     /// page, so a page underneath cannot take the bar over as a pop reveals
-    /// it. Does nothing outside a `tabBottomBar(for:in:_:)`.
+    /// it. Requires `tabBottomBar(for:in:_:)` or `registersTabBarItems(for:in:)`.
     func tabBottomBarItem<Item: View>(
         _ placement: TabBottomBarItemPlacement,
         isEnabled: Bool = true,
@@ -67,8 +76,9 @@ public extension View {
         modifier(TabBarItemModifier(placement: placement, isEnabled: isEnabled, item: item))
     }
 
-    /// Puts a button or menu inside the omnibox, after the page's name, while
-    /// this page is the one showing. Written the way it would be for a
+    /// Puts a button or menu in the omnibox area while this page is showing.
+    /// `AdaptiveTabContainer` gives it a separate glass button on iPad.
+    /// Written the way it would be for a
     /// toolbar, `Button(_:systemImage:action:)` or
     /// `Menu(_:systemImage:content:)`: the omnibox draws the symbol alone and
     /// keeps the title for VoiceOver.
@@ -80,16 +90,15 @@ public extension View {
             accessory()
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
-                .font(.system(size: 17))
-                // A tap target taller than the glyph, and no wider, so the
-                // glyph sits flush with the omnibox's own padding.
+                .font(.system(size: TabBottomBarMetrics.symbolSize))
+                // A tap target taller than the glyph for the compact bar.
                 .frame(minHeight: 44)
                 .contentShape(.rect)
         }
     }
 }
 
-private struct TabBottomBarItemsReader<Root: TabRoot, Identity: TabPageIdentity, Bar: View>: View {
+struct TabBottomBarItemsReader<Root: TabRoot, Identity: TabPageIdentity, Bar: View>: View {
 
     let store: TabNavigationStore<Root, Identity>
     let tabID: UUID

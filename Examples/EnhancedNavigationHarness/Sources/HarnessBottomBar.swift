@@ -54,7 +54,7 @@ struct HarnessBottomBar: View {
                 .accessibilityLabel("Tabs")
                 .harnessIdentifier("bar.tabs")
             }
-            .font(.body.weight(.medium))
+            .font(.system(size: TabBottomBarMetrics.symbolSize, weight: .medium))
             .foregroundStyle(.primary)
             .buttonStyle(.plain)
         }
@@ -88,10 +88,11 @@ struct TabCountLabel: View {
 
     var body: some View {
         Text("\(count)")
-            .font(.caption.weight(.bold))
-            .frame(width: 20, height: 20)
+            .font(.system(size: 13, weight: .bold))
+            .minimumScaleFactor(0.6)
+            .frame(width: 24, height: 24)
             .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .strokeBorder(lineWidth: 1.8)
             }
     }
