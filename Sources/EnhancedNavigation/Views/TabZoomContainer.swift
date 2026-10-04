@@ -32,32 +32,61 @@ public struct TabZoomContainer<Root: TabRoot, Identity: TabPageIdentity, Switche
                 // laid out, so the cards never report the frames the page
                 // collapses onto.
                 switcher
-                    .allowsHitTesting(store.isShowingTabSwitcher)
-                    .accessibilityHidden(!store.isShowingTabSwitcher)
+                    .modifier(TabSwitcherInteraction(store: store))
 
+                // The transition's state is read in the modifier alone: read
+                // here, every flip of it re-runs `page`, and with it every
+                // mounted tab's content, on the frame the zoom starts.
                 page(proxy.size.width)
-                    .scaleEffect(pageScale(in: proxy.size), anchor: .topLeading)
-                    .offset(pageOffset)
-                    .clipShape(pageClipShape(in: proxy.size))
-                    .animation(store.configuration.switcherAnimation, value: store.isPageCollapsed)
-                    // No cross-fade: the swap happens where page and
-                    // snapshot are pixel for pixel the same.
-                    .opacity(store.isPageSwappedForSnapshot ? 0 : 1)
-                    // Keyed on the unanimated flag: SwiftUI picks which
-                    // toolbar to show from what is interactive, so the
-                    // animated one swaps the bar mid-transition.
-                    .allowsHitTesting(!store.isShowingTabSwitcher)
-                    .accessibilityHidden(store.isShowingTabSwitcher)
+                    .modifier(TabZoomPlacement(
+                        store: store,
+                        size: proxy.size,
+                        cardCornerRadius: cardCornerRadius
+                    ))
             }
             .coordinateSpace(name: TabZoomCoordinateSpace.name)
         }
+    }
+}
+
+private struct TabSwitcherInteraction<Root: TabRoot, Identity: TabPageIdentity>: ViewModifier {
+
+    let store: TabNavigationStore<Root, Identity>
+
+    func body(content: Content) -> some View {
+        content
+            .allowsHitTesting(store.isShowingTabSwitcher)
+            .accessibilityHidden(!store.isShowingTabSwitcher)
+    }
+}
+
+private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewModifier {
+
+    let store: TabNavigationStore<Root, Identity>
+    let size: CGSize
+    let cardCornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(pageScale, anchor: .topLeading)
+            .offset(pageOffset)
+            .clipShape(pageClipShape)
+            .animation(store.configuration.switcherAnimation, value: store.isPageCollapsed)
+            // No cross-fade: the swap happens where page and
+            // snapshot are pixel for pixel the same.
+            .opacity(store.isPageSwappedForSnapshot ? 0 : 1)
+            // Keyed on the unanimated flag: SwiftUI picks which
+            // toolbar to show from what is interactive, so the
+            // animated one swaps the bar mid-transition.
+            .allowsHitTesting(!store.isShowingTabSwitcher)
+            .accessibilityHidden(store.isShowingTabSwitcher)
     }
 
     private var selectedCardFrame: CGRect? {
         store.isPageCollapsed ? store.collapseTarget : nil
     }
 
-    private func pageScale(in size: CGSize) -> CGFloat {
+    private var pageScale: CGFloat {
         guard let card = selectedCardFrame, size.width > 0 else { return 1 }
         return card.width / size.width
     }
@@ -73,7 +102,7 @@ public struct TabZoomContainer<Root: TabRoot, Identity: TabPageIdentity, Switche
     /// Only `progress` animates, so the rects it interpolates between have to
     /// outlive the transition: hence the store's target rather than the
     /// nil-when-open `selectedCardFrame`.
-    private func pageClipShape(in size: CGSize) -> CollapsingPageClipShape {
+    private var pageClipShape: CollapsingPageClipShape {
         let screen = CGRect(
             origin: .zero,
             size: CGSize(width: size.width, height: max(size.height, DisplayMetrics.windowHeight))
