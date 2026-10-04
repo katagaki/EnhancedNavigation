@@ -11,6 +11,7 @@ Safari-style tabs for SwiftUI, each tab with its own `NavigationPath`.
 | `TabZoomContainer`, `TabSwitcher` | A full-screen tab grid the page zooms down onto. |
 | `AdaptiveTabContainer` | Keeps the iPhone zoom UI and adds a Safari-style tab strip and card overview on iPad and Mac Catalyst. |
 | `.tabBottomBar { }` | A custom bottom bar laid out like the system `.bottomBar`. |
+| `TabCommands` | Safari's tab commands and keyboard shortcuts in the iPad and Catalyst menu bar. |
 | `.tabOmniboxEditing`, `.tabOmniboxPopup` | An editable wide-layout omnibox with a suggestions panel beneath it. |
 | `.interactivePopGesture(for:)` | Keeps swipe back working with the navigation bar hidden. |
 
@@ -100,6 +101,30 @@ AdaptiveTabContainer(store: store, cardCornerRadius: TabSwitcherCardMetrics.corn
 ```
 
 Both have no effect on iPhone, where the omnibox lives in your own bottom bar.
+
+For Safari's tab commands in the menu bar, with their hardware keyboard
+shortcuts, add `TabCommands` to your scene. They act on the focused window's
+`AdaptiveTabContainer`:
+
+```swift
+WindowGroup { ... }
+    .commands { TabCommands() }
+```
+
+| Shortcut | Action |
+| --- | --- |
+| ⌘T | New tab, from the page or the overview |
+| ⌘W | Close the selected tab, or the window when it is the last |
+| ⌘⇧] | Next tab, wrapping past the last |
+| ⌘⇧[ | Previous tab, wrapping past the first |
+| ⌘1 to ⌘8 | The tab at that position |
+| ⌘9 | The last tab |
+| ⌘[ | Back |
+| ⌘⇧\ | Show or hide the overview |
+
+While the overview is showing, only ⌘T, ⌘W and ⌘⇧\ respond. To expose the same
+moves in your own UI, call `selectAdjacentTab(offset:)` and
+`selectTab(atPosition:)` on the store.
 
 ## Bottom bar
 

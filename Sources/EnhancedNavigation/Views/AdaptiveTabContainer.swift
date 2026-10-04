@@ -101,6 +101,9 @@ public struct AdaptiveTabContainer<
                 .background(Color(uiColor: .systemBackground))
                 .onChange(of: store.selectedTabID) { _, _ in endOmniboxEditing() }
         }
+        // Outside the zoom, so the commands stay available while the page is
+        // hidden behind the overview.
+        .modifier(TabCommandActionsPublisher(store: store))
     }
 
     private var isEditingOmnibox: Bool {

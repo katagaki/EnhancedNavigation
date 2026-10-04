@@ -89,6 +89,58 @@ final class AdaptiveTabsUITests: HarnessUITestCase {
         XCTAssertTrue(firstTab.isHittable)
     }
 
+    func testIPadKeyboardShortcutsDriveTabs() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("Requires iPad") }
+        let tabs = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'adaptive.tab.'"))
+        let selected = tabs.matching(NSPredicate(format: "selected == true")).firstMatch
+        XCTAssertTrue(app.buttons["New Tab"].waitForExistence(timeout: 5))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertEqual(XCTWaiter.wait(for: [tabCount(2)], timeout: 5), .completed)
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertEqual(XCTWaiter.wait(for: [tabCount(3)], timeout: 5), .completed)
+        let ids = (0..<3).map { tabs.element(boundBy: $0).identifier }
+        expectSelected(ids[2], in: selected)
+
+        app.typeKey("1", modifierFlags: .command)
+        expectSelected(ids[0], in: selected)
+        app.typeKey("]", modifierFlags: [.command, .shift])
+        expectSelected(ids[1], in: selected)
+        app.typeKey("[", modifierFlags: [.command, .shift])
+        app.typeKey("[", modifierFlags: [.command, .shift])
+        expectSelected(ids[2], in: selected)
+        app.typeKey("1", modifierFlags: .command)
+        expectSelected(ids[0], in: selected)
+        app.typeKey("9", modifierFlags: .command)
+        expectSelected(ids[2], in: selected)
+
+        // The wide grid stays mounted behind the page, so the overview shows
+        // through ⌘1, which waits for it to close.
+        app.typeKey("\\", modifierFlags: [.command, .shift])
+        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+        app.typeKey("1", modifierFlags: .command)
+        XCTAssertEqual(XCTWaiter.wait(for: [selection(ids[0], in: selected)], timeout: 2), .timedOut)
+        app.typeKey("\\", modifierFlags: [.command, .shift])
+        app.typeKey("1", modifierFlags: .command)
+        expectSelected(ids[0], in: selected)
+
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertEqual(XCTWaiter.wait(for: [tabCount(2)], timeout: 5), .completed)
+        XCTAssertFalse(app.buttons[ids[0]].exists)
+
+        func tabCount(_ count: Int) -> XCTestExpectation {
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == %d", count), object: tabs)
+        }
+    }
+
+    private func expectSelected(_ id: String, in selected: XCUIElement, line: UInt = #line) {
+        XCTAssertEqual(XCTWaiter.wait(for: [selection(id, in: selected)], timeout: 5), .completed, line: line)
+    }
+
+    private func selection(_ id: String, in selected: XCUIElement) -> XCTestExpectation {
+        XCTNSPredicateExpectation(predicate: NSPredicate(format: "identifier == %@", id), object: selected)
+    }
+
     func testIPadPageKeepsItsNavigationAfterOverview() {
         guard UIDevice.current.userInterfaceIdiom == .pad else { return }
 

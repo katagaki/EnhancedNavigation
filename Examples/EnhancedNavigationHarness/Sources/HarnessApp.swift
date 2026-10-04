@@ -16,6 +16,7 @@ struct HarnessApp: App {
                 .environment(session.store)
                 .environment(session.media)
         }
+        .commands { TabCommands() }
     }
 }
 

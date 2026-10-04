@@ -55,6 +55,34 @@ struct TabLifecycleTests {
         #expect(store.selectedTabID == first)
     }
 
+    @Test func steppingThroughTabsWrapsAround() {
+        let store = makeStore()
+        let a = store.selectedTabID
+        let b = store.openTab()
+        let c = store.openTab()
+
+        store.selectAdjacentTab(offset: 1)
+        #expect(store.selectedTabID == a)
+        store.selectAdjacentTab(offset: 1)
+        #expect(store.selectedTabID == b)
+        store.selectAdjacentTab(offset: -1)
+        store.selectAdjacentTab(offset: -1)
+        #expect(store.selectedTabID == c)
+    }
+
+    @Test func selectingByPositionIgnoresMissingTabs() {
+        let store = makeStore()
+        let a = store.selectedTabID
+        let b = store.openTab()
+
+        store.selectTab(atPosition: 0)
+        #expect(store.selectedTabID == a)
+        store.selectTab(atPosition: 5)
+        #expect(store.selectedTabID == a)
+        store.selectTab(atPosition: 1)
+        #expect(store.selectedTabID == b)
+    }
+
     @Test func theLastTabCannotBeClosed() {
         let store = makeStore()
         let only = store.selectedTabID

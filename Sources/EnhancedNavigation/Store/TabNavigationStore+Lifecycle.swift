@@ -9,6 +9,19 @@ public extension TabNavigationStore {
         persistTabs()
     }
 
+    /// Steps through the tabs in strip order, wrapping around either end.
+    func selectAdjacentTab(offset: Int) {
+        guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == selectedTabID }) else { return }
+        let count = tabs.count
+        select(tabs[((index + offset) % count + count) % count].id)
+    }
+
+    /// Selects the tab at a zero-based position, ignoring one past the end.
+    func selectTab(atPosition position: Int) {
+        guard tabs.indices.contains(position) else { return }
+        select(tabs[position].id)
+    }
+
     @discardableResult
     func openTab(at root: Root = .newTabRoot, inBackground: Bool = false) -> UUID {
         let tab = Tab(root: root)
