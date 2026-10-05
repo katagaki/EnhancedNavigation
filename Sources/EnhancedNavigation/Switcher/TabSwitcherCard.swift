@@ -76,6 +76,7 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
         ))
         .buttonStyle(.plain)
         .accessibilityIdentifier("switcher.card")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         // Tapped on crossing either way, so the release point is felt.
         .sensoryFeedback(.impact(weight: .light), trigger: isPastCloseDistance)
         .onChange(of: isHeaderShown, initial: true) { _, isShown in

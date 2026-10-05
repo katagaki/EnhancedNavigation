@@ -82,6 +82,62 @@ final class SwitcherUITests: HarnessUITestCase {
         XCTAssertTrue(app.navigationBars["9 Harness Tabs"].exists)
     }
 
+    func testTheSelectedCardIsInViewWhenTheSwitcherOpens() {
+        openFeature("switcher", title: "Tab Switcher")
+        for _ in 0..<4 {
+            tap("switcher.openFour")
+        }
+        tap("switcher.show")
+        XCTAssertTrue(app.navigationBars["17 Harness Tabs"].waitForExistence(timeout: 5))
+
+        // The last tab, from the far end of the grid.
+        let grid = app.scrollViews.firstMatch
+        for _ in 0..<6 {
+            grid.swipeUp(velocity: .fast)
+        }
+        cards.allElementsBoundByIndex.last(where: \.isHittable)?.tap()
+        expectBarTitle("Utilities")
+
+        // Left scrolled back to the top: the next visit still opens on it.
+        showTabs()
+        XCTAssertTrue(selectedCard.waitForExistence(timeout: 5))
+        for _ in 0..<6 {
+            grid.swipeDown(velocity: .fast)
+        }
+        app.buttons["Done"].tap()
+        expectBarTitle("Utilities")
+        showTabs()
+        expectSelectedCardOnScreen()
+
+        // And after a relaunch, where nothing has scrolled the grid yet.
+        app.buttons["Done"].tap()
+        expectBarTitle("Utilities")
+        Thread.sleep(forTimeInterval: 1)
+        app.terminate()
+        app.launchArguments = []
+        app.launch()
+        expectBarTitle("Utilities")
+        showTabs()
+        expectSelectedCardOnScreen()
+    }
+
+    private var cards: XCUIElementQuery {
+        app.buttons.matching(identifier: "switcher.card")
+    }
+
+    private var selectedCard: XCUIElement {
+        cards.matching(NSPredicate(format: "selected == true")).firstMatch
+    }
+
+    private func expectSelectedCardOnScreen(file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(app.navigationBars["17 Harness Tabs"].waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(selectedCard.waitForExistence(timeout: 5), "the selected card was never built", file: file, line: line)
+        XCTAssertTrue(
+            app.windows.firstMatch.frame.contains(selectedCard.frame),
+            "the selected card sits at \(selectedCard.frame)", file: file, line: line
+        )
+    }
+
     /// A card is a button labelled with the tab's page.
     private func card(named title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch

@@ -38,27 +38,49 @@ public struct TabSwitcher<
     public var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                ScrollView {
-                    LazyVGrid(columns: columns(for: geometry.size.width), spacing: 16) {
-                        ForEach(store.tabs) { tab in
-                            TabSwitcherCard(
-                                store: store,
-                                tab: tab,
-                                isSelected: tab.id == store.selectedTabID,
-                                closeLabel: strings.closeTab,
-                                previewAspectRatio: previewAspectRatio(in: geometry.size),
-                                onSelect: { select(tab.id) },
-                                onClose: { close(tab.id) },
-                                placeholderIcon: placeholderIcon,
-                                label: cardLabel
-                            )
-                            .equatable()
-                            .reorderableTab(id: tab.id, in: store)
+                ScrollViewReader { scroll in
+                    ScrollView {
+                        LazyVGrid(columns: columns(for: geometry.size.width), spacing: 16) {
+                            ForEach(store.tabs) { tab in
+                                TabSwitcherCard(
+                                    store: store,
+                                    tab: tab,
+                                    isSelected: tab.id == store.selectedTabID,
+                                    closeLabel: strings.closeTab,
+                                    previewAspectRatio: previewAspectRatio(in: geometry.size),
+                                    onSelect: { select(tab.id) },
+                                    onClose: { close(tab.id) },
+                                    placeholderIcon: placeholderIcon,
+                                    label: cardLabel
+                                )
+                                .equatable()
+                                .reorderableTab(id: tab.id, in: store)
+                            }
                         }
+                        .padding(16)
                     }
-                    .padding(16)
+                    .endsTabReordering(in: store)
+                    // The grid is lazy, so a card scrolled out of reach is
+                    // never built and never reports the frame the page
+                    // collapses onto: the zoom has nowhere to go. Kept on the
+                    // selected card while the page covers the grid, so it is
+                    // built and placed before the switcher is shown; not while
+                    // any of it shows, where the cards would visibly jump.
+                    .onChange(of: store.selectedTabID, initial: true) { _, tabID in
+                        revealCard(tabID, with: scroll)
+                    }
+                    // Scrolled away from while shown, the selected card is put
+                    // back once the page has grown over the grid again.
+                    .onChange(of: store.isPageClipActive) { _, _ in
+                        revealCard(store.selectedTabID, with: scroll)
+                    }
+                    .onChange(of: store.tabs.count) { _, _ in
+                        revealCard(store.selectedTabID, with: scroll)
+                    }
+                    .onChange(of: geometry.size) { _, _ in
+                        revealCard(store.selectedTabID, with: scroll)
+                    }
                 }
-                .endsTabReordering(in: store)
             }
             .navigationTitle(strings.title(store.tabs.count))
             .toolbarTitleDisplayMode(.inline)
@@ -177,6 +199,11 @@ public struct TabSwitcher<
         // is drawn in the next frame, which was the growth's first, and the
         // page froze on the card before it moved. Behind the grid it is free.
         dismissOnceSettled()
+    }
+
+    private func revealCard(_ tabID: UUID, with scroll: ScrollViewProxy) {
+        guard !store.isPageClipActive else { return }
+        scroll.scrollTo(tabID, anchor: .center)
     }
 
     private func dismissOnceSettled() {
