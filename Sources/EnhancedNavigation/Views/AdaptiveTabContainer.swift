@@ -26,7 +26,7 @@ public struct AdaptiveTabContainer<
 
     /// The top inset the toolbar gives the page, which a `NavigationStack`
     /// does not hand on to its pages.
-    @State private var topBarInset: CGFloat = 0
+    @State private var topBarInset = TabBarInset()
 
     public init(
         store: TabNavigationStore<Root, Identity>,
@@ -77,7 +77,7 @@ public struct AdaptiveTabContainer<
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.safeAreaInsets.top
                 } action: { inset in
-                    topBarInset = inset
+                    topBarInset.value = inset
                 }
                 // A safe area bar rather than a stack, so pages scroll on
                 // underneath the bar's material.

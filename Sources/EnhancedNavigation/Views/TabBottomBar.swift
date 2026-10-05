@@ -53,7 +53,7 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
 
     /// The bottom inset the bar gives the view, which a `NavigationStack`
     /// does not hand on to its pages.
-    @State private var barInset: CGFloat = 0
+    @State private var barInset = TabBarInset()
 
     func body(content: Content) -> some View {
         content
@@ -62,7 +62,7 @@ private struct TabBottomBarModifier<Bar: View>: ViewModifier {
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.safeAreaInsets.bottom
             } action: { inset in
-                barInset = inset
+                barInset.value = inset
             }
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 bar
@@ -102,8 +102,8 @@ struct TabBottomBarPageInsetModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .safeAreaPadding(.top, max(topBarInset - pageInsets.top, 0))
-            .safeAreaPadding(.bottom, max(barInset - pageInsets.bottom, 0))
+            .safeAreaPadding(.top, max(topBarInset.value - pageInsets.top, 0))
+            .safeAreaPadding(.bottom, max(barInset.value - pageInsets.bottom, 0))
             // Outside the padding, or the page would measure its own
             // correction and take it back.
             .onGeometryChange(for: EdgeInsets.self) { proxy in
@@ -114,14 +114,22 @@ struct TabBottomBarPageInsetModifier: ViewModifier {
     }
 }
 
+/// A bar's inset, handed down by reference: a `NavigationStack` keeps the
+/// environment its pages were built with, so a plain value set once the bar
+/// has been measured never reaches them.
+@Observable
+final class TabBarInset {
+    var value: CGFloat = 0
+}
+
 extension EnvironmentValues {
     /// The bottom inset a `tabBottomBar` gives the view it is on, zero
     /// outside one.
-    @Entry var tabBottomBarInset: CGFloat = 0
+    @Entry var tabBottomBarInset = TabBarInset()
 
     /// The top inset the toolbar in `AdaptiveTabContainer` gives its page,
     /// zero outside one.
-    @Entry var tabTopBarInset: CGFloat = 0
+    @Entry var tabTopBarInset = TabBarInset()
 }
 
 private extension View {
