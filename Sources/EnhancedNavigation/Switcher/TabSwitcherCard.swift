@@ -69,8 +69,10 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
         }
         .offset(x: dragOffset)
         .opacity(closeProgress)
-        // High priority: the card is a button, which otherwise swallows the drag.
-        .highPriorityGesture(closeDragGesture)
+        .gesture(TabCloseSwipeGesture(
+            onChange: updateCloseDrag(translation:),
+            onEnd: endCloseDrag(translation:)
+        ))
         .buttonStyle(.plain)
         .accessibilityIdentifier("switcher.card")
         // Tapped on crossing either way, so the release point is felt.
@@ -93,27 +95,78 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
         1 - min(1, Double(-dragOffset / Metrics.closeDistance))
     }
 
-    private var closeDragGesture: some Gesture {
-        DragGesture(minimumDistance: 16)
-            .onChanged { value in
-                // Vertical drags belong to the grid's scroll view.
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                dragOffset = min(0, value.translation.width)
-                isPastCloseDistance = store.canCloseTabs && -dragOffset > Metrics.closeDistance
+    private func updateCloseDrag(translation: CGFloat) {
+        dragOffset = min(0, translation)
+        isPastCloseDistance = store.canCloseTabs && -dragOffset > Metrics.closeDistance
+    }
+
+    /// Ends short of the close distance, too, when the swipe is cancelled.
+    private func endCloseDrag(translation: CGFloat) {
+        isPastCloseDistance = false
+        if store.canCloseTabs, translation < -Metrics.closeDistance {
+            withAnimation(.smooth(duration: 0.2)) {
+                dragOffset = -Metrics.closeDistance * 2
             }
-            .onEnded { value in
-                isPastCloseDistance = false
-                if store.canCloseTabs, value.translation.width < -Metrics.closeDistance {
-                    withAnimation(.smooth(duration: 0.2)) {
-                        dragOffset = -Metrics.closeDistance * 2
-                    }
-                    onClose()
-                } else {
-                    withAnimation(.smooth(duration: 0.2)) {
-                        dragOffset = 0
-                    }
-                }
+            onClose()
+        } else {
+            withAnimation(.smooth(duration: 0.2)) {
+                dragOffset = 0
             }
+        }
+    }
+}
+
+/// A UIKit pan rather than a `DragGesture`: a drag recognizes in any direction
+/// and then holds the grid's scroll view off for the rest of the touch, so a
+/// scroll that strayed slightly sideways stopped scrolling at all. This one
+/// fails before recognizing unless the finger moves mostly leftwards, and the
+/// scroll view waits on that, so vertical drags always reach it.
+private struct TabCloseSwipeGesture: UIGestureRecognizerRepresentable {
+    let onChange: (CGFloat) -> Void
+    let onEnd: (CGFloat) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let recognizer = UIPanGestureRecognizer()
+        recognizer.maximumNumberOfTouches = 1
+        recognizer.delegate = context.coordinator
+        return recognizer
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        // In the window: the card moves with the finger, so its own
+        // coordinates would slide under it.
+        let translation = recognizer.translation(in: nil).x
+        switch recognizer.state {
+        case .began, .changed:
+            onChange(translation)
+        case .ended:
+            onEnd(translation)
+        case .cancelled, .failed:
+            onEnd(0)
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+            let velocity = pan.velocity(in: nil)
+            return velocity.x < 0 && abs(velocity.x) > abs(velocity.y) * 1.25
+        }
+
+        /// The grid's scroll view would otherwise begin on the same touch and
+        /// keep a sideways swipe from ever closing the card.
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldBeRequiredToFailBy other: UIGestureRecognizer
+        ) -> Bool {
+            other.view is UIScrollView
+        }
     }
 }
 

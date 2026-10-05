@@ -58,6 +58,30 @@ final class SwitcherUITests: HarnessUITestCase {
         XCTAssertTrue(app.navigationBars["4 Harness Tabs"].waitForExistence(timeout: 5))
     }
 
+    func testAScrollThatDriftsSidewaysStillScrollsTheGrid() {
+        openFeature("switcher", title: "Tab Switcher")
+        tap("switcher.openFour")
+        tap("switcher.openFour")
+        tap("switcher.show")
+        XCTAssertTrue(app.navigationBars["9 Harness Tabs"].waitForExistence(timeout: 5))
+
+        let first = card(named: "Tab Switcher")
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        let topBefore = first.frame.minY
+
+        let grid = app.scrollViews.firstMatch
+        let start = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        start.press(
+            forDuration: 0.05,
+            thenDragTo: start.withOffset(CGVector(dx: -40, dy: -300)),
+            withVelocity: .default,
+            thenHoldForDuration: 0.2
+        )
+
+        XCTAssertLessThan(first.frame.minY, topBefore - 100)
+        XCTAssertTrue(app.navigationBars["9 Harness Tabs"].exists)
+    }
+
     /// A card is a button labelled with the tab's page.
     private func card(named title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
