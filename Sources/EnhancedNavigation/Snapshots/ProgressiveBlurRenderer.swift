@@ -15,13 +15,23 @@ public enum ProgressiveBlurRenderer {
     /// just past a card's title row, whatever the card's shape.
     nonisolated static let depth: Double = 64
 
+    /// How far down the title row reaches, in the same points: the strip
+    /// measured to pick light or dark glyphs for it.
+    nonisolated static let titleDepth: Double = 40
+
+    /// Above this, the strip behind the title reads as light and takes dark
+    /// glyphs. Averaged over the strip, so a busy page sits mid-range.
+    nonisolated static let lightLuminance: Double = 0.55
+
     private final class Entry {
         let displayWidth: CGFloat
         let image: UIImage
+        let isTitleBackdropLight: Bool
 
-        init(displayWidth: CGFloat, image: UIImage) {
+        init(displayWidth: CGFloat, image: UIImage, isTitleBackdropLight: Bool) {
             self.displayWidth = displayWidth
             self.image = image
+            self.isTitleBackdropLight = isTitleBackdropLight
         }
     }
 
@@ -30,9 +40,19 @@ public enum ProgressiveBlurRenderer {
 
     /// The blur already rendered for `image` drawn `displayWidth` points wide.
     public static func cached(for image: UIImage, displayWidth: CGFloat) -> UIImage? {
+        entry(for: image, displayWidth: displayWidth)?.image
+    }
+
+    /// Whether the blurred strip behind a title row on `image` is light, once
+    /// its blur is rendered for `displayWidth`.
+    static func isTitleBackdropLight(for image: UIImage, displayWidth: CGFloat) -> Bool? {
+        entry(for: image, displayWidth: displayWidth)?.isTitleBackdropLight
+    }
+
+    private static func entry(for image: UIImage, displayWidth: CGFloat) -> Entry? {
         guard let entry = cache.object(forKey: image),
               entry.displayWidth == displayWidth.rounded() else { return nil }
-        return entry.image
+        return entry
     }
 
     /// Blurs `image` for drawing `displayWidth` points wide.
@@ -42,13 +62,18 @@ public enum ProgressiveBlurRenderer {
         let result = await Task.detached(priority: .userInitiated) {
             blur(image, displayWidth: displayWidth)
         }.value
-        if let result {
-            cache.setObject(Entry(displayWidth: displayWidth, image: result), forKey: image)
-        }
-        return result
+        guard let result else { return nil }
+        cache.setObject(
+            Entry(displayWidth: displayWidth, image: result.image, isTitleBackdropLight: result.isTitleBackdropLight),
+            forKey: image
+        )
+        return result.image
     }
 
-    private nonisolated static func blur(_ image: UIImage, displayWidth: CGFloat) -> UIImage? {
+    private nonisolated static func blur(
+        _ image: UIImage,
+        displayWidth: CGFloat
+    ) -> (image: UIImage, isTitleBackdropLight: Bool)? {
         guard let cgImage = image.cgImage else { return nil }
         let input = CIImage(cgImage: cgImage)
         let extent = input.extent
@@ -69,7 +94,34 @@ public enum ProgressiveBlurRenderer {
 
         guard let output = filter.outputImage?.cropped(to: extent),
               let rendered = context.createCGImage(output, from: extent) else { return nil }
-        return UIImage(cgImage: rendered, scale: image.scale, orientation: image.imageOrientation)
+        let titleStrip = CGRect(
+            x: extent.minX,
+            y: extent.maxY - titleDepth * pixelsPerPoint,
+            width: extent.width,
+            height: titleDepth * pixelsPerPoint
+        ).intersection(extent)
+        return (
+            UIImage(cgImage: rendered, scale: image.scale, orientation: image.imageOrientation),
+            luminance(of: output, in: titleStrip) > lightLuminance
+        )
+    }
+
+    /// The strip's average colour, weighted as the eye weighs its channels.
+    private nonisolated static func luminance(of image: CIImage, in rect: CGRect) -> Double {
+        let average = CIFilter.areaAverage()
+        average.inputImage = image
+        average.extent = rect
+        guard let output = average.outputImage else { return 0 }
+        var pixel = [UInt8](repeating: 0, count: 4)
+        context.render(
+            output,
+            toBitmap: &pixel,
+            rowBytes: 4,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
+        )
+        return (0.2126 * Double(pixel[0]) + 0.7152 * Double(pixel[1]) + 0.0722 * Double(pixel[2])) / 255
     }
 }
 

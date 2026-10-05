@@ -36,17 +36,18 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
                     }
                 }
                 .overlay(alignment: .top) {
-                    ZStack(alignment: .top) {
-                        TabSnapshotHeaderBlur(store: store, tabID: tab.id)
-                        TabSwitcherCardHeader(
-                            canClose: store.canCloseTabs,
-                            closeLabel: closeLabel,
-                            onClose: onClose
-                        ) {
-                            label(tab)
+                    TabSnapshotHeaderBlur(store: store, tabID: tab.id)
+                        .overlayPreferenceValue(TabSnapshotTitleBackdropKey.self, alignment: .top) { isLight in
+                            TabSwitcherCardHeader(
+                                canClose: store.canCloseTabs,
+                                closeLabel: closeLabel,
+                                isBackdropLight: isLight,
+                                onClose: onClose
+                            ) {
+                                label(tab)
+                            }
                         }
-                    }
-                    .opacity(isHeaderVisible ? 1 : 0)
+                        .opacity(isHeaderVisible ? 1 : 0)
                 }
                 .background(.background.secondary)
                 // Clipped as a whole: `clipped()` on the preview trims to the

@@ -43,6 +43,7 @@ public struct TabSnapshotHeaderBlur<Root: TabRoot, Identity: TabPageIdentity>: V
     private let store: TabNavigationStore<Root, Identity>
     private let tabID: UUID
     @State private var blurred: UIImage?
+    @State private var isTitleBackdropLight: Bool?
     @State private var width: CGFloat = 0
 
     public init(store: TabNavigationStore<Root, Identity>, tabID: UUID) {
@@ -63,6 +64,7 @@ public struct TabSnapshotHeaderBlur<Root: TabRoot, Identity: TabPageIdentity>: V
             }
         }
         .allowsHitTesting(false)
+        .preference(key: TabSnapshotTitleBackdropKey.self, value: isTitleBackdropLight)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width.rounded()
         } action: { newWidth in
@@ -73,21 +75,35 @@ public struct TabSnapshotHeaderBlur<Root: TabRoot, Identity: TabPageIdentity>: V
         .task(id: BlurKey(snapshot: snapshot.map(ObjectIdentifier.init), width: width)) {
             guard let snapshot, width > 0 else {
                 blurred = nil
+                isTitleBackdropLight = nil
                 return
             }
             if let cached = ProgressiveBlurRenderer.cached(for: snapshot, displayWidth: width) {
                 blurred = cached
+                isTitleBackdropLight = ProgressiveBlurRenderer.isTitleBackdropLight(for: snapshot, displayWidth: width)
                 return
             }
             // Cleared first: the previous snapshot's blur, over the new one,
             // shows the old page's title through the header.
             blurred = nil
             blurred = await ProgressiveBlurRenderer.render(snapshot, displayWidth: width)
+            isTitleBackdropLight = ProgressiveBlurRenderer.isTitleBackdropLight(for: snapshot, displayWidth: width)
         }
     }
 
     private struct BlurKey: Hashable {
         let snapshot: ObjectIdentifier?
         let width: CGFloat
+    }
+}
+
+/// Whether the blurred strip under a title row laid over
+/// `TabSnapshotHeaderBlur` is light, or nil before it is measured or when
+/// there is no snapshot.
+struct TabSnapshotTitleBackdropKey: PreferenceKey {
+    static let defaultValue: Bool? = nil
+
+    static func reduce(value: inout Bool?, nextValue: () -> Bool?) {
+        value = nextValue() ?? value
     }
 }
