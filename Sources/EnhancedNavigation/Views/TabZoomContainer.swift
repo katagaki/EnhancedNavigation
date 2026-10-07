@@ -82,6 +82,10 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
             }
             // Hidden rather than covered: a covered page is still drawn.
             .opacity(store.isPageGrowingFromSnapshot ? 0 : 1)
+            // Kept out of the snapshot's fade: swept into it, the page fades
+            // in as the snapshot fades out, and the two wash out together
+            // over whatever is behind them.
+            .animation(nil, value: store.snapshotStandInTabID)
             // Inside the zoom, so the snapshot takes exactly the page's place
             // on every frame and the swap back is pixel for pixel.
             .overlay {

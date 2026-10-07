@@ -8,10 +8,14 @@ public extension TabNavigationStore {
     }
 
     func showTabSwitcher() {
-        // Not over a growth cut short: the page has not changed since it was
-        // collapsed, and the window now holds the zoom mid-flight, grid and all.
-        if !isPageGrowingFromSnapshot {
+        // Only of a page at rest. Over a growth cut short the window holds the
+        // zoom mid-flight, grid bar and all, and that card would then grow
+        // back out of it every visit after; a page still growing has had no
+        // chance to change since its last snapshot anyway.
+        if !isPageClipActive {
             captureSelectedTabSnapshot()
+        }
+        if !isPageGrowingFromSnapshot {
             // A fade still running is over the live page, which collapses
             // as itself.
             setWithoutAnimation { snapshotStandInTabID = nil }
