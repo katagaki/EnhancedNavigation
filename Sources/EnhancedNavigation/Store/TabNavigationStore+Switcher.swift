@@ -15,23 +15,36 @@ public extension TabNavigationStore {
         if !isPageClipActive {
             captureSelectedTabSnapshot()
         }
-        if !isPageGrowingFromSnapshot {
-            // A fade still running is over the live page, which collapses
-            // as itself.
-            setWithoutAnimation { snapshotStandInTabID = nil }
-        }
         freezeCollapseTarget()
         setWithoutAnimation {
             isPageClipActive = true
             isShowingTabSwitcher = true
+            // Collapses as the snapshot just taken, or as the one a growth cut
+            // short was already showing. Only a page that has never been
+            // captured collapses live.
+            snapshotStandInTabID = snapshots[selectedTabID] != nil ? selectedTabID : nil
+            isPageZoomingAsSnapshot = snapshotStandInTabID != nil
         }
-        withAnimation(configuration.switcherAnimation, completionCriteria: .removed) {
-            isPageCollapsed = true
-        } completion: {
-            // Not if the collapse was reversed while it ran: the completion
-            // still fires, and the page is back at full screen by then.
-            guard self.isPageCollapsed else { return }
-            self.setWithoutAnimation { self.isPageSwappedForSnapshot = true }
+        // A tick later, as with the growth: in the same pass, the swap to the
+        // snapshot is swept into the zoom's animation and cross-fades.
+        Task { @MainActor in
+            // Dismissed within the tick, before anything moved.
+            guard self.isShowingTabSwitcher else {
+                self.setWithoutAnimation {
+                    self.isPageClipActive = false
+                    self.isPageZoomingAsSnapshot = false
+                    self.snapshotStandInTabID = nil
+                }
+                return
+            }
+            withAnimation(self.configuration.switcherAnimation, completionCriteria: .removed) {
+                self.isPageCollapsed = true
+            } completion: {
+                // Not if the collapse was reversed while it ran: the completion
+                // still fires, and the page is back at full screen by then.
+                guard self.isPageCollapsed else { return }
+                self.setWithoutAnimation { self.isPageSwappedForSnapshot = true }
+            }
         }
     }
 
@@ -55,7 +68,7 @@ public extension TabNavigationStore {
             // it, the stand-in is swept into the zoom's animation. A tab
             // opened from the switcher has no snapshot, and grows live.
             snapshotStandInTabID = snapshots[selectedTabID] != nil ? selectedTabID : nil
-            isPageGrowingFromSnapshot = snapshotStandInTabID != nil
+            isPageZoomingAsSnapshot = snapshotStandInTabID != nil
         }
         // A tick later: the page re-lays itself out around its own bars the
         // moment the chrome comes back, and doing that in the same pass as
@@ -69,7 +82,7 @@ public extension TabNavigationStore {
                 guard !self.isPageCollapsed, !self.isShowingTabSwitcher else { return }
                 self.setWithoutAnimation {
                     self.isPageClipActive = false
-                    self.isPageGrowingFromSnapshot = false
+                    self.isPageZoomingAsSnapshot = false
                 }
                 self.fadeOutSnapshotStandIn()
             }
@@ -98,7 +111,7 @@ extension TabNavigationStore {
         guard let tabID = snapshotStandInTabID else { return }
         Task { @MainActor in
             await FrameClock.waitForSettledFrames()
-            guard snapshotStandInTabID == tabID, !isPageGrowingFromSnapshot else { return }
+            guard snapshotStandInTabID == tabID, !isPageZoomingAsSnapshot else { return }
             withAnimation(configuration.snapshotFadeAnimation) {
                 snapshotStandInTabID = nil
             }

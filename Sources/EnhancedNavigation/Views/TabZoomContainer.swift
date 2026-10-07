@@ -81,11 +81,7 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
                 restingPageTop = top
             }
             // Hidden rather than covered: a covered page is still drawn.
-            .opacity(store.isPageGrowingFromSnapshot ? 0 : 1)
-            // Kept out of the snapshot's fade: swept into it, the page fades
-            // in as the snapshot fades out, and the two wash out together
-            // over whatever is behind them.
-            .animation(nil, value: store.snapshotStandInTabID)
+            .opacity(store.isPageZoomingAsSnapshot ? 0 : 1)
             // Inside the zoom, so the snapshot takes exactly the page's place
             // on every frame and the swap back is pixel for pixel.
             .overlay {
@@ -93,7 +89,7 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
                     TabPageSnapshotStandIn(
                         store: store,
                         tabID: tabID,
-                        top: max(DisplayMetrics.safeAreaInsets.top - restingPageTop, 0)
+                        top: statusBarBand
                     )
                     .transition(.opacity)
                 }
@@ -121,12 +117,21 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
         return card.width / size.width
     }
 
-    /// The page's origin is where the snapshot's crop starts, so the card's
-    /// origin is the whole offset; correcting for the safe area double-counts
-    /// it and lifts the page clear of the snapshot.
+    /// A live page shrunk off the status bar loses its top safe area, so its
+    /// content starts at its origin, as the card's crop does: the card's
+    /// origin is the whole offset. The snapshot standing in for it keeps the
+    /// status bar band above it, which rides up out of the clip instead, so
+    /// the band narrows away over the zoom rather than all at once.
     private var pageOffset: CGSize {
         guard let card = selectedCardFrame else { return .zero }
-        return CGSize(width: card.minX, height: card.minY)
+        let band = store.isPageZoomingAsSnapshot ? statusBarBand * pageScale : 0
+        return CGSize(width: card.minX, height: card.minY - band)
+    }
+
+    /// What of the status bar the page runs under at rest, which its snapshot
+    /// leaves out.
+    private var statusBarBand: CGFloat {
+        max(DisplayMetrics.safeAreaInsets.top - restingPageTop, 0)
     }
 
     /// Only `progress` animates, so the rects it interpolates between have to
@@ -177,6 +182,9 @@ private struct TabPageSnapshotStandIn<Root: TabRoot, Identity: TabPageIdentity>:
                 }
             }
             .background(Color(uiColor: .systemBackground))
+            // Faded as one picture: faded piece by piece, its backing fades
+            // in a layer of its own and washes the live page out with white.
+            .compositingGroup()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
