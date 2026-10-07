@@ -6,8 +6,10 @@ public enum WindowSnapshotter {
     /// its cost runs with the pixel count.
     private static let maximumScale: CGFloat = 2
 
-    /// Captures the safe area of the key window as it is on screen right now,
-    /// scaled down to `width` points across.
+    /// Captures the key window below the status bar as it is on screen right
+    /// now, scaled down to `width` points across. The home indicator band is
+    /// kept: a bottom bar's glass runs down into it, and a page grown back out
+    /// as its snapshot would otherwise lose that band until the swap.
     public static func captureVisiblePage(width targetWidth: CGFloat) -> UIImage? {
         guard let window = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
@@ -15,7 +17,7 @@ public enum WindowSnapshotter {
 
         let insets = window.safeAreaInsets
         let scale = targetWidth / window.bounds.width
-        let height = window.bounds.height - insets.top - insets.bottom
+        let height = window.bounds.height - insets.top
         guard height > 0 else { return nil }
 
         let size = CGSize(width: targetWidth, height: height * scale)
@@ -28,7 +30,7 @@ public enum WindowSnapshotter {
         format.opaque = true
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             // Drawn shifted up so the status bar falls off the top of the
-            // canvas; the home indicator runs off the bottom.
+            // canvas.
             window.drawHierarchy(
                 in: CGRect(
                     x: 0,

@@ -153,10 +153,10 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
     }
 }
 
-/// A tab's snapshot over the page's safe area, which is the region it was
-/// captured from. The status bar and home indicator bands it leaves out are
-/// filled with its own top row and bottom corner pixel, so they carry on the
-/// page's background rather than flashing a flat one until the swap.
+/// A tab's snapshot over the page below the status bar, which is the region
+/// it was captured from. The status bar band it leaves out is filled with its
+/// own top row, so it carries on the page's background rather than flashing a
+/// flat one until the swap.
 private struct TabPageSnapshotStandIn<Root: TabRoot, Identity: TabPageIdentity>: View {
 
     let store: TabNavigationStore<Root, Identity>
@@ -175,8 +175,9 @@ private struct TabPageSnapshotStandIn<Root: TabRoot, Identity: TabPageIdentity>:
                             width: proxy.size.width,
                             height: proxy.size.width / snapshot.widthToHeightRatio
                         )
-                    // The corner rather than the whole row: the row runs
-                    // through the bottom bar's glass, which hangs into the band.
+                    // Only for a snapshot from before the home indicator band
+                    // was captured: the corner rather than the whole row, as
+                    // the row runs through the bottom bar's glass.
                     edge(of: snapshot, row: .bottom)
                         .frame(maxHeight: .infinity)
                 }
