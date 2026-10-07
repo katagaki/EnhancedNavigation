@@ -17,6 +17,9 @@ public struct TabStoreConfiguration {
     /// Slower than the default so the zoom reads.
     public var switcherAnimation: Animation
 
+    /// Fades the snapshot a page grows back as off the live page underneath.
+    public var snapshotFadeAnimation: Animation
+
     public var frequentlyVisitedLimit: Int
 
     public init(
@@ -25,6 +28,7 @@ public struct TabStoreConfiguration {
         snapshotDirectoryName: String,
         snapshotWidth: CGFloat = 200,
         switcherAnimation: Animation = .smooth(duration: 0.34),
+        snapshotFadeAnimation: Animation = .easeOut(duration: 0.2),
         frequentlyVisitedLimit: Int = 8
     ) {
         self.liveTabLimit = liveTabLimit
@@ -32,6 +36,7 @@ public struct TabStoreConfiguration {
         self.snapshotDirectoryName = snapshotDirectoryName
         self.snapshotWidth = snapshotWidth
         self.switcherAnimation = switcherAnimation
+        self.snapshotFadeAnimation = snapshotFadeAnimation
         self.frequentlyVisitedLimit = frequentlyVisitedLimit
     }
 }

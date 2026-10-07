@@ -66,8 +66,34 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
     let size: CGSize
     let cardCornerRadius: CGFloat
 
+    /// Where the page's top sits in the window at rest. A page run edge to
+    /// edge starts under the status bar, and hands no safe area on to what
+    /// is laid over it.
+    @State private var restingPageTop: CGFloat = 0
+
     func body(content: Content) -> some View {
         content
+            // Read at rest only: mid-zoom, the frame is the scaled one.
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.frame(in: .global).minY
+            } action: { top in
+                guard !store.isPageClipActive else { return }
+                restingPageTop = top
+            }
+            // Hidden rather than covered: a covered page is still drawn.
+            .opacity(store.isPageGrowingFromSnapshot ? 0 : 1)
+            // Inside the zoom, so the snapshot takes exactly the page's place
+            // on every frame and the swap back is pixel for pixel.
+            .overlay {
+                if let tabID = store.snapshotStandInTabID {
+                    TabPageSnapshotStandIn(
+                        store: store,
+                        tabID: tabID,
+                        top: max(DisplayMetrics.safeAreaInsets.top - restingPageTop, 0)
+                    )
+                    .transition(.opacity)
+                }
+            }
             .scaleEffect(pageScale, anchor: .topLeading)
             .offset(pageOffset)
             .clipShape(pageClipShape)
@@ -115,6 +141,58 @@ private struct TabZoomPlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewM
             expandedRadius: DisplayMetrics.displayCornerRadius,
             collapsedRadius: cardCornerRadius
         )
+    }
+}
+
+/// A tab's snapshot over the page's safe area, which is the region it was
+/// captured from. The status bar and home indicator bands it leaves out are
+/// filled with its own top row and bottom corner pixel, so they carry on the
+/// page's background rather than flashing a flat one until the swap.
+private struct TabPageSnapshotStandIn<Root: TabRoot, Identity: TabPageIdentity>: View {
+
+    let store: TabNavigationStore<Root, Identity>
+    let tabID: UUID
+    let top: CGFloat
+
+    var body: some View {
+        if let snapshot = store.snapshots[tabID] {
+            GeometryReader { proxy in
+                VStack(spacing: 0) {
+                    edge(of: snapshot, row: .top)
+                        .frame(height: top)
+                    Image(uiImage: snapshot)
+                        .resizable()
+                        .frame(
+                            width: proxy.size.width,
+                            height: proxy.size.width / snapshot.widthToHeightRatio
+                        )
+                    // The corner rather than the whole row: the row runs
+                    // through the bottom bar's glass, which hangs into the band.
+                    edge(of: snapshot, row: .bottom)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .background(Color(uiColor: .systemBackground))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private enum Row {
+        case top, bottom
+    }
+
+    @ViewBuilder
+    private func edge(of snapshot: UIImage, row: Row) -> some View {
+        if let image = snapshot.cgImage, let strip = image.cropping(to: CGRect(
+            x: 0,
+            y: row == .top ? 0 : image.height - 1,
+            width: row == .top ? image.width : 1,
+            height: 1
+        )) {
+            Image(decorative: strip, scale: snapshot.scale)
+                .resizable()
+        }
     }
 }
 

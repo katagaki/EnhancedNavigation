@@ -34,6 +34,19 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
     /// visibly out of register.
     public internal(set) var isPageSwappedForSnapshot = false
 
+    /// Hides the live page while it grows back out of its card, with its
+    /// snapshot drawn in its place, so the growth only ever moves a picture.
+    /// Drawn live, the page re-renders its content, bars and glass at every
+    /// scale of the spring, and a tab mounted by the selection is still
+    /// settling on its first frames.
+    public internal(set) var isPageGrowingFromSnapshot = false
+
+    /// The tab whose snapshot is laid over the page. Outlives
+    /// `isPageGrowingFromSnapshot`: once the page has landed it is drawn
+    /// under the snapshot for a couple of frames, and the snapshot then fades
+    /// off it rather than cutting to it.
+    public internal(set) var snapshotStandInTabID: UUID?
+
     /// While a swipe-back is in flight the path has already popped, so the
     /// chrome would flip to the previous page before the gesture is
     /// committed, and stay wrong if the swipe is cancelled.

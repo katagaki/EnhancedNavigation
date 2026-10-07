@@ -8,7 +8,14 @@ public extension TabNavigationStore {
     }
 
     func showTabSwitcher() {
-        captureSelectedTabSnapshot()
+        // Not over a growth cut short: the page has not changed since it was
+        // collapsed, and the window now holds the zoom mid-flight, grid and all.
+        if !isPageGrowingFromSnapshot {
+            captureSelectedTabSnapshot()
+            // A fade still running is over the live page, which collapses
+            // as itself.
+            setWithoutAnimation { snapshotStandInTabID = nil }
+        }
         freezeCollapseTarget()
         setWithoutAnimation {
             isPageClipActive = true
@@ -38,7 +45,14 @@ public extension TabNavigationStore {
         // A drag let go of outside the grid is not reported before iOS 27,
         // so its placeholder would otherwise greet the next visit.
         endReordering()
-        setWithoutAnimation { isShowingTabSwitcher = false }
+        setWithoutAnimation {
+            isShowingTabSwitcher = false
+            // Here rather than with the growth: flipped in the same pass as
+            // it, the stand-in is swept into the zoom's animation. A tab
+            // opened from the switcher has no snapshot, and grows live.
+            snapshotStandInTabID = snapshots[selectedTabID] != nil ? selectedTabID : nil
+            isPageGrowingFromSnapshot = snapshotStandInTabID != nil
+        }
         // A tick later: the page re-lays itself out around its own bars the
         // moment the chrome comes back, and doing that in the same pass as
         // the swap drops its content by a bar's height in the first frame of
@@ -49,7 +63,11 @@ public extension TabNavigationStore {
                 self.isPageCollapsed = false
             } completion: {
                 guard !self.isPageCollapsed, !self.isShowingTabSwitcher else { return }
-                self.setWithoutAnimation { self.isPageClipActive = false }
+                self.setWithoutAnimation {
+                    self.isPageClipActive = false
+                    self.isPageGrowingFromSnapshot = false
+                }
+                self.fadeOutSnapshotStandIn()
             }
         }
     }
@@ -68,6 +86,19 @@ extension TabNavigationStore {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction, change)
+    }
+
+    /// Not until the live page has drawn behind it: its first frames back
+    /// are its heaviest, and a fade over them stutters.
+    private func fadeOutSnapshotStandIn() {
+        guard let tabID = snapshotStandInTabID else { return }
+        Task { @MainActor in
+            await FrameClock.waitForSettledFrames()
+            guard snapshotStandInTabID == tabID, !isPageGrowingFromSnapshot else { return }
+            withAnimation(configuration.snapshotFadeAnimation) {
+                snapshotStandInTabID = nil
+            }
+        }
     }
 
     private func freezeCollapseTarget() {
