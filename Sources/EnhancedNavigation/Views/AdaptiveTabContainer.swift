@@ -82,15 +82,20 @@ public struct AdaptiveTabContainer<
                 // A safe area bar rather than a stack, so pages scroll on
                 // underneath the bar's material.
                 .safeAreaBar(edge: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        toolbar
-                        if store.tabs.count > 1 {
-                            tabStrip
+                    // Behind a boundary: the bar reads the selection, and
+                    // read here, every selection would rebuild the page and
+                    // every mounted tab in it.
+                    ObservationBoundary {
+                        VStack(spacing: 0) {
+                            toolbar
+                            if store.tabs.count > 1 {
+                                tabStrip
+                            }
                         }
+                        // Up behind the status bar too, so content scrolling
+                        // past the toolbar never shows above it.
+                        .background(.bar, ignoresSafeAreaEdges: .top)
                     }
-                    // Up behind the status bar too, so content scrolling past
-                    // the toolbar never shows above it.
-                    .background(.bar, ignoresSafeAreaEdges: .top)
                 }
                 .overlayPreferenceValue(TabOmniboxBoundsKey.self) { anchor in
                     if isEditingOmnibox, let omniboxPopup, omniboxPopup.isPresented {
@@ -99,7 +104,7 @@ public struct AdaptiveTabContainer<
                     }
                 }
                 .background(Color(uiColor: .systemBackground))
-                .onChange(of: store.selectedTabID) { _, _ in endOmniboxEditing() }
+                .onTabSelectionChange(in: store) { _, _ in endOmniboxEditing() }
         }
         // Outside the zoom, so the commands stay available while the page is
         // hidden behind the overview.

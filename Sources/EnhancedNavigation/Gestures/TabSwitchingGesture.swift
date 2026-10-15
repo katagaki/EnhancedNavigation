@@ -16,23 +16,51 @@ public extension View {
         #if os(visionOS)
         self
         #else
+        modifier(TabSwitchingGestureModifier(store: store, tabID: tabID, isEnabled: isEnabled))
+        #endif
+    }
+}
+
+#if !os(visionOS)
+/// Reads the store in its own body rather than in whatever builds the bar,
+/// which is usually a tab's whole page: the selection a swipe commits would
+/// otherwise rebuild it on the frame the pages start to settle.
+private struct TabSwitchingGestureModifier<Root: TabRoot, Identity: TabPageIdentity>: ViewModifier {
+    let store: TabNavigationStore<Root, Identity>
+    let tabID: UUID
+    let isEnabled: Bool
+
+    /// How far a drag along the omnibox can reach, which on a bar crowded
+    /// with buttons is well short of the page.
+    @State private var omniboxWidth: CGFloat = 0
+
+    func body(content: Content) -> some View {
         let canSwipe = isEnabled && tabID == store.selectedTabID
             && !store.isInteractivelyPopping
             && !store.isShowingTabSwitcher && !store.isPageClipActive
-        self
+        content
             .contentShape(Rectangle())
             .gesture(TabSwitchingPanGesture(
                 isEnabled: canSwipe,
                 // Rechecked as the pan begins: the tab could have closed, been
                 // selected elsewhere, or entered a navigation transition.
-                shouldBegin: { isEnabled && store.selectedTabID == tabID && store.canBeginTabSwipe },
-                onChange: { store.updateTabSwipe(translation: $0) },
-                onEnd: { store.endTabSwipe(velocity: $0) },
-                onCancel: { store.cancelTabSwipe() }
+                shouldBegin: { [store, tabID, isEnabled] in
+                    isEnabled && store.selectedTabID == tabID && store.canBeginTabSwipe
+                },
+                onChange: { [store] in store.updateTabSwipe(translation: $0) },
+                onEnd: { [store, omniboxWidth] in
+                    store.endTabSwipe(velocity: $0, omniboxWidth: omniboxWidth)
+                },
+                onCancel: { [store] in store.cancelTabSwipe() }
             ))
-        #endif
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                omniboxWidth = width
+            }
     }
 }
+#endif
 
 #if !os(visionOS)
 /// Rejects vertical motion before recognition, leaving taps and long presses
@@ -69,12 +97,19 @@ private struct TabSwitchingPanGesture: UIGestureRecognizerRepresentable {
         switch recognizer.state {
         case .began:
             coordinator.isTracking = shouldBegin()
+            // The pan is recognised some way into the drag. Measured from
+            // there, so the pages pick up the finger rather than jumping
+            // that far on the first frame. Only the recogniser's own slop is
+            // taken off: a fast flick can be recognised far further in, and
+            // that distance belongs to the swipe.
+            let translation = horizontalTranslation(of: recognizer)
+            coordinator.slop = copysign(min(abs(translation), 12), translation)
             if coordinator.isTracking {
-                onChange(horizontalTranslation(of: recognizer))
+                onChange(0)
             }
         case .changed:
             guard coordinator.isTracking else { return }
-            onChange(horizontalTranslation(of: recognizer))
+            onChange(horizontalTranslation(of: recognizer) - coordinator.slop)
         case .ended:
             guard coordinator.isTracking else { return }
             coordinator.isTracking = false
@@ -96,6 +131,7 @@ private struct TabSwitchingPanGesture: UIGestureRecognizerRepresentable {
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var isTracking = false
+        var slop: CGFloat = 0
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }

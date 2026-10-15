@@ -15,7 +15,9 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
 
     public internal(set) var tabs: [Tab]
     public internal(set) var selectedTabID: UUID
-    public internal(set) var liveTabIDs: [UUID]
+    public internal(set) var liveTabIDs: [UUID] {
+        didSet { updateMountedTabIDs() }
+    }
     public internal(set) var visitCounts: [String: Int]
 
     /// Drives the chrome. Changed without an animation, or the toolbars
@@ -57,10 +59,18 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
 
     /// Kept apart from the translation, which changes every frame of a
     /// swipe, so only the pages read it and not the whole stack.
-    public internal(set) var tabSwipeNeighbour: TabSwipeNeighbour?
+    public internal(set) var tabSwipeNeighbour: TabSwipeNeighbour? {
+        didSet { updateMountedTabIDs() }
+    }
     public internal(set) var tabSwipeTranslation: CGFloat = 0
     @ObservationIgnored var tabSwipePageWidth: CGFloat = 0
     @ObservationIgnored var tabSwipeGeneration = 0
+
+    /// The live tabs and a swipe's neighbour: what `LiveTabStack` keeps
+    /// mounted. A set rather than the live order, which every selection
+    /// reshuffles, so a swipe that starts or commits on tabs already
+    /// mounted does not rebuild every tab's content mid-swipe.
+    var mountedTabIDs: Set<UUID> = []
 
     /// Routed through the store rather than a preference: a switcher's
     /// NavigationStack does not propagate preferences out to the shell.
@@ -124,6 +134,7 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
         let resolved = selected ?? restored[0].id
         self.selectedTabID = resolved
         self.liveTabIDs = [resolved]
+        self.mountedTabIDs = [resolved]
         self.visitCounts = Self.loadVisitCounts(configuration: configuration)
         self.pageHistories = pageHistories
         self.tabsAwaitingPathRestore = Set(
@@ -142,6 +153,18 @@ public final class TabNavigationStore<Root: TabRoot, Identity: TabPageIdentity> 
 
     public func isLive(_ tabID: UUID) -> Bool {
         liveTabIDs.contains(tabID)
+    }
+
+    /// Written only when the set changes: an equal assignment still
+    /// notifies its observers.
+    private func updateMountedTabIDs() {
+        var mounted = Set(liveTabIDs)
+        if let neighbour = tabSwipeNeighbour {
+            mounted.insert(neighbour.tabID)
+        }
+        if mounted != mountedTabIDs {
+            mountedTabIDs = mounted
+        }
     }
 
     func tab(_ tabID: UUID) -> Tab? {

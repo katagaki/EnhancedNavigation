@@ -131,6 +131,41 @@ struct TabLifecycleTests {
         #expect(store.liveTabIDs == [b, a])
     }
 
+    @Test func aSwipeMountsItsNeighbourAndItsCommitKeepsTheMountedSet() {
+        let store = makeStore(liveTabLimit: 2)
+        let a = store.selectedTabID
+        let b = store.openTab()
+        let c = store.openTab()
+        store.select(b)
+        #expect(store.mountedTabIDs == [b, c])
+
+        store.tabSwipePageWidth = 400
+        store.updateTabSwipe(translation: 40)
+        #expect(store.mountedTabIDs == [a, b, c])
+
+        store.updateTabSwipe(translation: -200)
+        #expect(store.mountedTabIDs == [b, c])
+        store.endTabSwipe(velocity: 0)
+        #expect(store.selectedTabID == c)
+        #expect(store.liveTabIDs == [b, c])
+        #expect(store.mountedTabIDs == [b, c])
+    }
+
+    @Test func aDragAcrossHalfAShortOmniboxCommits() {
+        let store = makeStore()
+        let a = store.selectedTabID
+        let b = store.openTab(inBackground: true)
+        store.tabSwipePageWidth = 400
+
+        store.updateTabSwipe(translation: -60)
+        store.endTabSwipe(velocity: 0)
+        #expect(store.selectedTabID == a)
+
+        store.updateTabSwipe(translation: -60)
+        store.endTabSwipe(velocity: 0, omniboxWidth: 100)
+        #expect(store.selectedTabID == b)
+    }
+
     @Test func aTabPlayingMediaIsNeverEvicted() {
         let store = makeStore(liveTabLimit: 2)
         let a = store.selectedTabID

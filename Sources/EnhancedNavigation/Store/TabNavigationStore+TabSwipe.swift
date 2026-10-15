@@ -29,17 +29,21 @@ extension TabNavigationStore {
     }
 
     /// Commits when the swipe, carried on by its release velocity, would have
-    /// covered nearly a third of the page: a drag along the whole omnibox is
-    /// less than half of it.
-    func endTabSwipe(velocity: CGFloat) {
+    /// covered nearly a third of the page, or half the omnibox if that is
+    /// less: a bar crowded with buttons leaves the omnibox too short to drag
+    /// a third of the page along.
+    func endTabSwipe(velocity: CGFloat, omniboxWidth: CGFloat = .infinity) {
         let width = tabSwipePageWidth
         guard let neighbour = tabSwipeNeighbour, width > 0 else {
+            // Past either end the page only gives a little, so the finger's
+            // speed is not the page's.
             cancelTabSwipe()
             return
         }
         let projected = tabSwipeTranslation + velocity * 0.2
-        guard abs(projected) > width * 0.3, (projected < 0) == neighbour.isNext else {
-            cancelTabSwipe()
+        let threshold = min(width * 0.3, omniboxWidth > 0 ? omniboxWidth * 0.5 : .infinity)
+        guard abs(projected) > threshold, (projected < 0) == neighbour.isNext else {
+            cancelTabSwipe(velocity: velocity)
             return
         }
         // Selected on release rather than once settled, so the incoming page
@@ -53,18 +57,25 @@ extension TabNavigationStore {
             tabSwipeNeighbour = TabSwipeNeighbour(tabID: outgoingTabID, isNext: !neighbour.isNext)
             tabSwipeTranslation += neighbour.isNext ? width : -width
         }
-        settleTabSwipe()
+        settleTabSwipe(velocity: velocity)
     }
 
-    func cancelTabSwipe() {
+    func cancelTabSwipe(velocity: CGFloat = 0) {
         guard isSwipingBetweenTabs else { return }
-        settleTabSwipe()
+        settleTabSwipe(velocity: velocity)
     }
 
-    private func settleTabSwipe() {
+    /// Springs from the speed the finger let go at, so a flick carries on
+    /// into the settle rather than stopping dead and starting again.
+    private func settleTabSwipe(velocity: CGFloat) {
         tabSwipeGeneration += 1
         let generation = tabSwipeGeneration
-        withAnimation(.smooth(duration: 0.3)) {
+        // A spring's initial velocity is a fraction of the distance it covers
+        // per second. Bounded, as a page released just short of rest would
+        // otherwise be flung off it.
+        let distance = -tabSwipeTranslation
+        let relativeVelocity = abs(distance) < 1 ? 0 : min(max(velocity / distance, -12), 12)
+        withAnimation(.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: relativeVelocity)) {
             tabSwipeTranslation = 0
         } completion: { [self] in
             guard generation == tabSwipeGeneration else { return }

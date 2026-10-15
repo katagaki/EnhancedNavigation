@@ -18,21 +18,16 @@ public struct LiveTabStack<Root: TabRoot, Identity: TabPageIdentity, Content: Vi
     }
 
     public var body: some View {
-        let swipeNeighbourID = store.tabSwipeNeighbour?.tabID
+        // Reads only which tabs are mounted: the selection and the swipe are
+        // read per tab below, so neither re-runs `content` for every tab.
+        let mountedTabIDs = store.mountedTabIDs
         ZStack {
             ForEach(store.tabs) { tab in
                 // A swipe mounts the tab beside the selected one, so the page
                 // it uncovers is the real one and stays put once selected.
-                if store.isLive(tab.id) || tab.id == swipeNeighbourID {
-                    let isSelected = tab.id == store.selectedTabID
+                if mountedTabIDs.contains(tab.id) {
                     content(tab)
                         .modifier(TabSwipePlacement(store: store, tabID: tab.id))
-                        .opacity(isSelected || tab.id == swipeNeighbourID ? 1 : 0)
-                        .allowsHitTesting(isSelected)
-                        // A zero-opacity tab still publishes its accessibility
-                        // elements; collapsing the subtree takes them out.
-                        .accessibilityElement(children: isSelected ? .contain : .ignore)
-                        .accessibilityHidden(!isSelected)
                 }
             }
         }
@@ -44,21 +39,31 @@ public struct LiveTabStack<Root: TabRoot, Identity: TabPageIdentity, Content: Vi
     }
 }
 
-/// Reads the swipe's translation on its own, so a frame of the swipe moves
-/// the pages without re-running every mounted tab's content.
+/// Reads the selection and the swipe on its own, so a frame of the swipe, or
+/// the selection it commits, moves and reveals the pages without re-running
+/// every mounted tab's content.
 private struct TabSwipePlacement<Root: TabRoot, Identity: TabPageIdentity>: ViewModifier {
 
     let store: TabNavigationStore<Root, Identity>
     let tabID: UUID
 
     func body(content: Content) -> some View {
-        content.offset(x: offset)
+        let isSelected = tabID == store.selectedTabID
+        let isNeighbour = store.tabSwipeNeighbour?.tabID == tabID
+        content
+            .offset(x: offset(isSelected: isSelected))
+            .opacity(isSelected || isNeighbour ? 1 : 0)
+            .allowsHitTesting(isSelected)
+            // A zero-opacity tab still publishes its accessibility
+            // elements; collapsing the subtree takes them out.
+            .accessibilityElement(children: isSelected ? .contain : .ignore)
+            .accessibilityHidden(!isSelected)
     }
 
-    private var offset: CGFloat {
+    private func offset(isSelected: Bool) -> CGFloat {
         // Checked before the translation is read, so the tabs left out of
         // the swipe are not invalidated on every frame of it.
-        if tabID == store.selectedTabID {
+        if isSelected {
             return store.tabSwipeTranslation
         }
         guard let neighbour = store.tabSwipeNeighbour, neighbour.tabID == tabID else { return 0 }
