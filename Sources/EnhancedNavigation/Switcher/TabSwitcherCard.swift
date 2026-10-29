@@ -58,6 +58,16 @@ struct TabSwitcherCard<Root: TabRoot, Identity: TabPageIdentity, Label: View>: V
                 // card's own bounds, so an inset border spends the transition
                 // hidden under the page and snaps back the frame it is swapped out.
                 .background {
+                    // Pages and the switcher can share a background, which
+                    // would otherwise leave the card with no edge.
+                    RoundedRectangle(
+                        cornerRadius: Metrics.cornerRadius + Metrics.outlineWidth / 2,
+                        style: .continuous
+                    )
+                    .stroke(Color(uiColor: .separator), lineWidth: Metrics.outlineWidth)
+                    .padding(-Metrics.outlineWidth / 2)
+                }
+                .background {
                     RoundedRectangle(
                         cornerRadius: Metrics.cornerRadius + Metrics.selectionRingInset,
                         style: .continuous

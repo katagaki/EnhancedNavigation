@@ -12,4 +12,6 @@ public enum TabSwitcherCardMetrics {
 
     /// How far the selection ring sits outside the card's edge.
     static let selectionRingInset: CGFloat = 3
+
+    static let outlineWidth: CGFloat = 1
 }
