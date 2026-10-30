@@ -79,8 +79,6 @@ public struct TabSwitcher<
                 .onChange(of: store.tabs.count) { _, _ in
                     revealCard(store.selectedTabID)
                 }
-                // The bars' insets reach the scroll view after its first
-                // layout, so the reveal is worked out again once they have.
                 .onScrollGeometryChange(for: SwitcherScrollLayout.self) { geometry in
                     SwitcherScrollLayout(geometry)
                 } action: { _, layout in
@@ -180,7 +178,6 @@ public struct TabSwitcher<
         return [GridItem(.adaptive(minimum: SwitcherGrid.minimumCardWidth), spacing: SwitcherGrid.spacing)]
     }
 
-    /// How many cards `columns(for:)` puts in a row across `width`.
     private func columnCount(for width: CGFloat) -> Int {
         if usesWideLayout {
             return width >= 1000 ? 3 : 2
@@ -218,11 +215,8 @@ public struct TabSwitcher<
         dismissOnceSettled()
     }
 
-    /// Worked out here rather than left to `scrollTo(id:anchor:)`: under a
-    /// container that ignores the safe area, that counts the top bar's inset
-    /// twice when keeping a card near either end within the grid, and leaves
-    /// the grid scrolled past its top. Settled again on later layouts, the
-    /// grid moved by a bar's height as the switcher was shown.
+    /// Not `scrollTo(id:anchor:)`, which overshoots the grid's top under a
+    /// container that ignores the safe area.
     private func revealCard(_ tabID: UUID) {
         guard !store.isPageClipActive, let scrollLayout,
               let index = store.tabs.firstIndex(where: { $0.id == tabID }) else { return }
@@ -254,8 +248,6 @@ private enum SwitcherGrid {
     static let minimumCardWidth: CGFloat = 150
 }
 
-/// What of the scroll view's geometry moves the selected card, but not where
-/// it is scrolled to.
 private struct SwitcherScrollLayout: Equatable {
 
     let contentInsets: EdgeInsets
@@ -268,9 +260,6 @@ private struct SwitcherScrollLayout: Equatable {
         contentSize = geometry.contentSize
     }
 
-    /// How far down the grid to scroll for the row holding the card at
-    /// `index` to sit in the middle of what the bars leave visible, kept
-    /// within the grid's ends. Rows are all as tall as each other.
     func offset(centring index: Int, of count: Int, columns: Int) -> CGFloat {
         let spacing = SwitcherGrid.spacing
         let visibleHeight = containerSize.height - contentInsets.top - contentInsets.bottom
