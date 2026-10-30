@@ -18,6 +18,8 @@ public struct TabSwitcher<
     private let placeholderIcon: TabSwitcherPlaceholderIcon
     private let topTrailingItem: TopTrailingItem
     @State private var isDismissing = false
+    @State private var scrollPosition = ScrollPosition(idType: UUID.self)
+    @State private var scrollLayout: SwitcherScrollLayout?
 
     public init(
         store: TabNavigationStore<Root, Identity>,
@@ -38,48 +40,50 @@ public struct TabSwitcher<
     public var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                ScrollViewReader { scroll in
-                    ScrollView {
-                        LazyVGrid(columns: columns(for: geometry.size.width), spacing: 16) {
-                            ForEach(store.tabs) { tab in
-                                TabSwitcherCard(
-                                    store: store,
-                                    tab: tab,
-                                    isSelected: tab.id == store.selectedTabID,
-                                    closeLabel: strings.closeTab,
-                                    previewAspectRatio: previewAspectRatio(in: geometry.size),
-                                    onSelect: { select(tab.id) },
-                                    onClose: { close(tab.id) },
-                                    placeholderIcon: placeholderIcon,
-                                    label: cardLabel
-                                )
-                                .equatable()
-                                .reorderableTab(id: tab.id, in: store)
-                            }
+                ScrollView {
+                    LazyVGrid(columns: columns(for: geometry.size.width), spacing: SwitcherGrid.spacing) {
+                        ForEach(store.tabs) { tab in
+                            TabSwitcherCard(
+                                store: store,
+                                tab: tab,
+                                isSelected: tab.id == store.selectedTabID,
+                                closeLabel: strings.closeTab,
+                                previewAspectRatio: previewAspectRatio(in: geometry.size),
+                                onSelect: { select(tab.id) },
+                                onClose: { close(tab.id) },
+                                placeholderIcon: placeholderIcon,
+                                label: cardLabel
+                            )
+                            .equatable()
+                            .reorderableTab(id: tab.id, in: store)
                         }
-                        .padding(16)
                     }
-                    .endsTabReordering(in: store)
-                    // The grid is lazy, so a card scrolled out of reach is
-                    // never built and never reports the frame the page
-                    // collapses onto: the zoom has nowhere to go. Kept on the
-                    // selected card while the page covers the grid, so it is
-                    // built and placed before the switcher is shown; not while
-                    // any of it shows, where the cards would visibly jump.
-                    .onChange(of: store.selectedTabID, initial: true) { _, tabID in
-                        revealCard(tabID, with: scroll)
-                    }
-                    // Scrolled away from while shown, the selected card is put
-                    // back once the page has grown over the grid again.
-                    .onChange(of: store.isPageClipActive) { _, _ in
-                        revealCard(store.selectedTabID, with: scroll)
-                    }
-                    .onChange(of: store.tabs.count) { _, _ in
-                        revealCard(store.selectedTabID, with: scroll)
-                    }
-                    .onChange(of: geometry.size) { _, _ in
-                        revealCard(store.selectedTabID, with: scroll)
-                    }
+                    .padding(SwitcherGrid.spacing)
+                }
+                .scrollPosition($scrollPosition)
+                .endsTabReordering(in: store)
+                // The grid is lazy, so a card scrolled out of reach is
+                // never built and never reports the frame the page
+                // collapses onto: the zoom has nowhere to go. Kept on the
+                // selected card while the page covers the grid, so it is
+                // built and placed before the switcher is shown; not while
+                // any of it shows, where the cards would visibly jump.
+                .onChange(of: store.selectedTabID, initial: true) { _, tabID in
+                    revealCard(tabID)
+                }
+                // Scrolled away from while shown, the selected card is put
+                // back once the page has grown over the grid again.
+                .onChange(of: store.isPageClipActive) { _, _ in
+                    revealCard(store.selectedTabID)
+                }
+                .onChange(of: store.tabs.count) { _, _ in
+                    revealCard(store.selectedTabID)
+                }
+                .onScrollGeometryChange(for: SwitcherScrollLayout.self) { geometry in
+                    SwitcherScrollLayout(geometry)
+                } action: { _, layout in
+                    scrollLayout = layout
+                    revealCard(store.selectedTabID)
                 }
             }
             .navigationTitle(strings.title(store.tabs.count))
@@ -166,10 +170,20 @@ public struct TabSwitcher<
 
     private func columns(for width: CGFloat) -> [GridItem] {
         if usesWideLayout {
-            let count = width >= 1000 ? 3 : 2
-            return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+            return Array(
+                repeating: GridItem(.flexible(), spacing: SwitcherGrid.spacing),
+                count: columnCount(for: width)
+            )
         }
-        return [GridItem(.adaptive(minimum: 150), spacing: 16)]
+        return [GridItem(.adaptive(minimum: SwitcherGrid.minimumCardWidth), spacing: SwitcherGrid.spacing)]
+    }
+
+    private func columnCount(for width: CGFloat) -> Int {
+        if usesWideLayout {
+            return width >= 1000 ? 3 : 2
+        }
+        let spacing = SwitcherGrid.spacing
+        return max(Int((width - spacing) / (SwitcherGrid.minimumCardWidth + spacing)), 1)
     }
 
     private func previewAspectRatio(in size: CGSize) -> CGFloat {
@@ -201,9 +215,16 @@ public struct TabSwitcher<
         dismissOnceSettled()
     }
 
-    private func revealCard(_ tabID: UUID, with scroll: ScrollViewProxy) {
-        guard !store.isPageClipActive else { return }
-        scroll.scrollTo(tabID, anchor: .center)
+    /// Not `scrollTo(id:anchor:)`, which overshoots the grid's top under a
+    /// container that ignores the safe area.
+    private func revealCard(_ tabID: UUID) {
+        guard !store.isPageClipActive, let scrollLayout,
+              let index = store.tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        scrollPosition.scrollTo(y: scrollLayout.offset(
+            centring: index,
+            of: store.tabs.count,
+            columns: columnCount(for: scrollLayout.containerSize.width)
+        ))
     }
 
     private func dismissOnceSettled() {
@@ -219,6 +240,34 @@ public struct TabSwitcher<
         withAnimation(.smooth.speed(1.5)) {
             store.close(tabID)
         }
+    }
+}
+
+private enum SwitcherGrid {
+    static let spacing: CGFloat = 16
+    static let minimumCardWidth: CGFloat = 150
+}
+
+private struct SwitcherScrollLayout: Equatable {
+
+    let contentInsets: EdgeInsets
+    let containerSize: CGSize
+    let contentSize: CGSize
+
+    init(_ geometry: ScrollGeometry) {
+        contentInsets = geometry.contentInsets
+        containerSize = geometry.containerSize
+        contentSize = geometry.contentSize
+    }
+
+    func offset(centring index: Int, of count: Int, columns: Int) -> CGFloat {
+        let spacing = SwitcherGrid.spacing
+        let visibleHeight = containerSize.height - contentInsets.top - contentInsets.bottom
+        let rows = max((count + columns - 1) / columns, 1)
+        let rowPitch = (contentSize.height - spacing) / CGFloat(rows)
+        let rowMidY = spacing + CGFloat(index / columns) * rowPitch + (rowPitch - spacing) / 2
+        let furthest = max(contentSize.height - visibleHeight, 0)
+        return min(max(rowMidY - visibleHeight / 2, 0), furthest)
     }
 }
 
